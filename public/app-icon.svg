@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VDS Control">
+  <rect width="512" height="512" rx="112" fill="#080d10"/>
+  <rect x="64" y="72" width="384" height="368" rx="72" fill="#111b20" stroke="#253a42" stroke-width="12"/>
+  <path d="M132 166h248M132 256h248M132 346h248" stroke="#40d6b4" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="152" cy="166" r="13" fill="#7cf0d3"/>
+  <circle cx="152" cy="256" r="13" fill="#f3c15f"/>
+  <circle cx="152" cy="346" r="13" fill="#ff7a6f"/>
+  <path d="M228 124h56" stroke="#96a8ad" stroke-width="18" stroke-linecap="round"/>
+</svg>

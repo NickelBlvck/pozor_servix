@@ -1,0 +1,15 @@
+services:
+  servix:
+    build: .
+    container_name: servix
+    ports:
+      - "3000:3000"
+    environment:
+      SITE_TITLE: "SERVIX"
+      DATA_DIR: "/app/data"
+      # TZ: "Europe/Moscow"
+      # TELEGRAM_NOTIFY_URL: "tgram://TOKEN/CHAT_ID:TOPIC_ID"
+      # NOTIFY_ON_START: "true"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

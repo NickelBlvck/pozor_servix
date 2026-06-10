@@ -1,0 +1,534 @@
+{
+  "app": {
+    "defaultTitle": "SERVIX"
+  },
+  "language": {
+    "ru": "Русский",
+    "en": "English"
+  },
+  "logo": {
+    "brand": "CP",
+    "subtitle": "CRM SYSTEM"
+  },
+  "nav": {
+    "assets": "Records",
+    "providers": "Providers",
+    "stats": "Statistics",
+    "alerts": "Alerts",
+    "logs": "Logs",
+    "guide": "Manual",
+    "settings": "Settings",
+    "collapseMenu": "Collapse menu",
+    "expandMenu": "Expand menu"
+  },
+  "type": {
+    "vps": "Server",
+    "domain": "Domain",
+    "certificate": "Certificate",
+    "record": "Record"
+  },
+  "typePlural": {
+    "vps": "Servers",
+    "domain": "Domains",
+    "certificate": "Certificates",
+    "record": "Records"
+  },
+  "common": {
+    "login": "Log in",
+    "logout": "Log out",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "open": "Open",
+    "cabinet": "Panel",
+    "payments": "Payments",
+    "term": "Term",
+    "provider": "Provider",
+    "providerEmpty": "Not selected",
+    "providersEmpty": "No provider",
+    "domain": "Domain",
+    "country": "Country",
+    "countryEmpty": "Not selected",
+    "searchCountry": "Search country",
+    "noCountries": "No countries found",
+    "expiresAt": "Expires",
+    "total": "Total",
+    "date": "Date",
+    "dateTime": "Date and time",
+    "amount": "Amount",
+    "sum": "Amount",
+    "name": "Name",
+    "type": "Type",
+    "currentTerm": "Current term",
+    "notSpecified": "Not specified",
+    "now": "now",
+    "testTelegram": "Test Telegram",
+    "addPayment": "Add payment"
+  },
+  "auth": {
+    "title": "Auth",
+    "totpTitle": "Two-factor code",
+    "totpText": "Enter the 6-digit code from your authenticator app.",
+    "login": "Login",
+    "password": "Password",
+    "passwordRepeat": "Repeat password",
+    "totpCode": "2FA code",
+    "backToLogin": "Back to login",
+    "invalidLogin": "Invalid login or password.",
+    "createUser": "Create user"
+  },
+  "summary": {
+    "servers": "Servers",
+    "domains": "Domains",
+    "providers": "Providers",
+    "paid": "Paid",
+    "terms": "Terms"
+  },
+  "assets": {
+    "search": "Search: name, IP, domain, provider",
+    "allTypes": "All types",
+    "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "copyIp": "Copy IP",
+    "add": "Add record",
+    "emptyTitle": "Add your first record",
+    "emptyText": "The expiration time can be set down to hours and minutes.",
+    "metaProvider": "Provider: {value}",
+    "metaCountry": "Country: {value}",
+    "metaDomain": "Domain: {value}",
+    "new": "New record",
+    "edit": "Edit record",
+    "saved": "Record saved",
+    "deleted": "Record deleted",
+    "deactivated": "Record deactivated",
+    "activated": "Record activated",
+    "ipCopied": "IP copied",
+    "copyFailed": "Could not copy",
+    "deleteConfirm": "Delete \"{name}\"?"
+  },
+  "providers": {
+    "add": "Add provider",
+    "emptyTitle": "No providers yet",
+    "emptyText": "Add a hosting provider, registrar, or certificate service.",
+    "loginUrlEmpty": "Link is not set",
+    "loginUrl": "Login URL",
+    "faviconUrl": "Favicon URL",
+    "color": "Provider color",
+    "note": "Note",
+    "notePlaceholder": "Login, payment terms, or any useful note",
+    "new": "New provider",
+    "edit": "Edit provider",
+    "saved": "Provider saved",
+    "deleted": "Provider deleted",
+    "deleteConfirm": "Delete provider \"{name}\"?"
+  },
+  "stats": {
+    "period": "Statistics period",
+    "period7d": "7 days",
+    "period30d": "30 days",
+    "period90d": "90 days",
+    "period180d": "180 days",
+    "period1y": "1 year",
+    "periodAll": "All time",
+    "spendByUnit": "Spend by {unit}",
+    "unitHours": "hours",
+    "unitDays": "days",
+    "paymentsNone": "No payments yet",
+    "providerSpend": "Providers by spend",
+    "spendNone": "No spend yet",
+    "paymentCount": "Payment count",
+    "allPayments": "All payments for period",
+    "shownOf": "{shown} of {total}",
+    "filter": "Filter: server, provider, amount",
+    "providerFilter": "Provider filter",
+    "allProviders": "All providers",
+    "sort": "Payment sorting",
+    "sortDateDesc": "Newest first",
+    "sortDateAsc": "Oldest first",
+    "sortAmountDesc": "Amount descending",
+    "sortAmountAsc": "Amount ascending",
+    "sortServerAsc": "Server A-Z",
+    "sortProviderAsc": "Provider A-Z",
+    "pageSize": "Payments per page",
+    "noFilteredPayments": "No payments match the selected filters",
+    "noPeriodPayments": "No server payments for the selected period",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "cardServers": "Total servers",
+    "cardPaidServers": "With payments",
+    "cardPaidPeriod": "Paid for period",
+    "cardPayments": "Payments",
+    "cardAvgPayment": "Average payment",
+    "cardMaxPayment": "Max payment",
+    "cardSoon": "Expire soon",
+    "cardOverdue": "Overdue",
+    "segmentStable": "Stable",
+    "segmentSoon": "Soon",
+    "segmentOverdue": "Overdue"
+  },
+  "alerts": {
+    "emptyTitle": "No terms",
+    "emptyText": "No upcoming expirations need attention.",
+    "configured": "Telegram is configured. Notifications are scheduled in realtime without hourly polling.",
+    "notConfigured": "Telegram is not configured. Set TELEGRAM_NOTIFY_URL in docker-compose.yml.",
+    "testSent": "Test sent to Telegram",
+    "testSkipped": "Telegram is not configured",
+    "testMessage": "Test notification."
+  },
+  "logs": {
+    "refresh": "Refresh",
+    "search": "Search logs",
+    "allActions": "All actions",
+    "action": "Action",
+    "time": "Time",
+    "path": "Path",
+    "ip": "IP",
+    "details": "Details",
+    "pageSize": "Logs per page",
+    "empty": "No logs yet"
+  },
+  "settings": {
+    "subtitle": "Service behavior, notifications, and account security in one place.",
+    "generalTitle": "General settings",
+    "generalText": "Interface, timezone, and Telegram notification rules.",
+    "siteTitle": "Service title",
+    "leads": "Telegram notification leads",
+    "leadsHint": "Format: `m` minutes, `h` hours, `d` days. Example: `5m, 2h, 1d, 3d, 5d`.",
+    "language": "Interface and notification language",
+    "timezone": "Timezone",
+    "telegramNotifyUrl": "Notification URL",
+    "notifyOnStart": "Send notifications on start",
+    "saved": "Settings saved",
+    "testTelegram": "Test Telegram"
+  },
+  "guide": {
+    "subtitle": "A complete manual for records, payments, notifications, security, and operating practices.",
+    "search": "Quick search in the manual",
+    "found": "Sections found: {count}",
+    "goodTitle": "Recommended",
+    "badTitle": "Avoid",
+    "emptyTitle": "Nothing found",
+    "emptyText": "Try a different search query or clear the search field.",
+    "sections": {
+      "start": {
+        "title": "Quick start",
+        "text": "The panel keeps servers, domains, certificates, payments, and expiration dates in one place.",
+        "items": [
+          "Create providers first: hosting panels, domain registrars, and certificate services.",
+          "Add records and choose the correct type: server, domain, or certificate.",
+          "Set expiration down to minutes so notifications fire on time.",
+          "Add payments inside records so statistics reflect real spend."
+        ],
+        "do": [
+          "Set a provider for every record.",
+          "Set the country for servers right away.",
+          "Use the Telegram test button after changing the notification URL."
+        ],
+        "dont": [
+          "Do not keep duplicate records for the same service.",
+          "Do not leave expiration empty for records that need notifications."
+        ]
+      },
+      "records": {
+        "title": "Records",
+        "text": "Records have three types: servers, domains, and certificates. Each type has its own fields.",
+        "items": [
+          "Server: name, IP, country, provider, and expiration.",
+          "Domain: name, domain, provider, and expiration.",
+          "Certificate: name, domain, provider, and expiration.",
+          "Inactive records are hidden from regular lists and do not send notifications, but payments stay in statistics.",
+          "Click the IP itself in a server card to copy it."
+        ],
+        "do": [
+          "Use clear names, for example project-prod-01.",
+          "Deactivate old services instead of deleting them if you need payment history.",
+          "Sort records by dragging within a type."
+        ],
+        "dont": [
+          "Do not use the domain field for servers.",
+          "Do not delete a record if you want to keep its payments in statistics."
+        ]
+      },
+      "providers": {
+        "title": "Providers",
+        "text": "Providers connect records with login URLs, favicon, color, and notes.",
+        "items": [
+          "The login URL is used by the panel button on record cards.",
+          "Favicon can be a direct link or a website link; /favicon.ico will be used.",
+          "Provider color is used in statistics and provider cards.",
+          "Notes preserve line breaks and are useful for payment terms, contacts, or reminders."
+        ],
+        "do": [
+          "Add the panel URL to quickly pay or manage service.",
+          "Use notes for details that are hard to remember.",
+          "Use different colors for readable statistics."
+        ],
+        "dont": [
+          "Do not use temporary login links.",
+          "Do not store passwords in notes if other people can access the panel."
+        ]
+      },
+      "payments": {
+        "title": "Payments",
+        "text": "Payments are added inside a record and are used by server statistics.",
+        "items": [
+          "A payment has USDT amount and payment date/time.",
+          "You can quickly add a payment from the payment modal.",
+          "Statistics count server payments for the selected period.",
+          "Payments remain in statistics when a record is deactivated."
+        ],
+        "do": [
+          "Add a payment right after paying.",
+          "Use the exact payment date if you paid in advance.",
+          "Use CSV/PDF export for reconciliation."
+        ],
+        "dont": [
+          "Do not add the same payment twice.",
+          "Do not change payment dates without reason, or charts become less accurate."
+        ]
+      },
+      "notifications": {
+        "title": "Telegram notifications",
+        "text": "Notifications are scheduled from the lead list and sent automatically.",
+        "items": [
+          "Notification URL format is tgram://token/chat_id:topic; topic is optional.",
+          "Leads are comma-separated: 5m, 2h, 1d, 3d, 5d.",
+          "After expiration changes, the nearest relevant notification is sent and older farther leads are suppressed.",
+          "Inactive records do not send notifications.",
+          "The test button in settings checks the URL currently typed in the field."
+        ],
+        "do": [
+          "Use a few leads: short, daily, and several days before.",
+          "Run the test after changing bot token or chat.",
+          "Keep timezone correct in settings."
+        ],
+        "dont": [
+          "Do not create too many close leads, it becomes noisy.",
+          "Do not expose the bot token publicly."
+        ]
+      },
+      "statistics": {
+        "title": "Statistics",
+        "text": "Statistics shows server spend by providers and periods.",
+        "items": [
+          "Charts are based on server payments.",
+          "Available periods: 7 days, 30 days, 90 days, 180 days, year, or all time.",
+          "The payments table supports search, sorting, pagination, and export.",
+          "Provider colors make charts easier to read."
+        ],
+        "do": [
+          "Check 30 or 90 day spend regularly.",
+          "Use provider filter to audit a specific service.",
+          "Export CSV for further processing."
+        ],
+        "dont": [
+          "Do not treat domain and certificate statistics as server spend.",
+          "Do not forget that wrong payment dates affect charts."
+        ]
+      },
+      "security": {
+        "title": "Security",
+        "text": "Access is protected by login and password, with optional 2FA.",
+        "items": [
+          "The first launch asks you to create a user.",
+          "Password can be changed in settings.",
+          "2FA is enabled with a QR code and authenticator app.",
+          "Old sessions are reset after password change.",
+          "Login and 2FA attempts are rate-limited."
+        ],
+        "do": [
+          "Use a long unique password.",
+          "Enable 2FA if the panel is exposed to the internet.",
+          "Restrict access with reverse proxy or firewall."
+        ],
+        "dont": [
+          "Do not expose the panel without HTTPS.",
+          "Do not share access with people who do not need payment and infrastructure data."
+        ]
+      },
+      "logs": {
+        "title": "Logs",
+        "text": "Action logs are stored in data/access.log and shown in the logs section.",
+        "items": [
+          "Logs include logins, failed logins, record changes, provider changes, and settings updates.",
+          "The logs table supports search, action filter, sorting, and pagination.",
+          "Logs help understand who changed important data and when."
+        ],
+        "do": [
+          "Check logs after suspicious changes.",
+          "Keep the data folder when moving the app.",
+          "Back up data together with the database and access.log."
+        ],
+        "dont": [
+          "Do not delete access.log without a reason.",
+          "Do not place the data folder in a public web directory."
+        ]
+      },
+      "bestPractices": {
+        "title": "Operating practices",
+        "text": "A few habits make the panel more reliable and useful over time.",
+        "items": [
+          "Back up the data folder before upgrades.",
+          "After docker-compose changes, rebuild with docker compose up -d --build.",
+          "Keep one source of truth: deactivate services that are no longer used.",
+          "Check expirations after bulk edits."
+        ],
+        "do": [
+          "Use HTTPS for external access.",
+          "Store data on a persistent volume.",
+          "Check the notifications page from time to time."
+        ],
+        "dont": [
+          "Do not mount data to a random temporary folder.",
+          "Do not run multiple containers against the same SQLite database at once.",
+          "Do not ignore Telegram test errors."
+        ]
+      }
+    }
+  },
+  "security": {
+    "passwordTitle": "Password",
+    "passwordText": "Update the password for the current account.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat new password",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed",
+    "totpTitle": "Two-factor authentication",
+    "totpEnabledShort": "Enabled",
+    "totpDisabledShort": "Disabled",
+    "totpEnabled": "2FA is enabled. Login requires a code from your authenticator app.",
+    "totpDisabled": "2FA is disabled. Start setup to connect an authenticator app.",
+    "startTotp": "Start 2FA setup",
+    "qrCode": "Scan QR code",
+    "totpSecret": "Secret key",
+    "totpUri": "Authenticator URI",
+    "totpCode": "Code from app",
+    "invalidTotp": "Invalid 2FA code. Check the code and try again.",
+    "enableTotp": "Enable 2FA",
+    "disableTotp": "Disable 2FA",
+    "totpStarted": "Secret generated. Add it to your authenticator app and enter the code.",
+    "totpEnabledToast": "2FA enabled",
+    "totpDisabledToast": "2FA disabled"
+  },
+  "payments": {
+    "title": "Payments: {name}",
+    "amountUsdt": "Amount USDT",
+    "empty": "No payments yet",
+    "addAmount": "Enter payment amount",
+    "added": "Payment added",
+    "deleted": "Payment deleted"
+  },
+  "duration": {
+    "overdue": "Overdue by {duration}",
+    "expiresNow": "Expires now",
+    "expiresIn": "Expires in {duration}",
+    "overdueLower": "overdue by {duration}",
+    "in": "in {duration}",
+    "reduceTerm": "Reduce term",
+    "reduceHint": "subtract days",
+    "extendTerm": "Extend term",
+    "extendHint": "add days"
+  },
+  "telegram": {
+    "title": "⚠️ <b>Service expires soon</b>",
+    "provider": "Provider",
+    "expiresAt": "Expires",
+    "left": "Left",
+    "trigger": "Trigger",
+    "triggerBefore": "{lead} before",
+    "paidTotal": "Paid total",
+    "paymentButton": "Go to payment"
+  },
+  "toast": {
+    "login": "Logged in",
+    "requestError": "Request error"
+  },
+  "export": {
+    "title": "Payments for period",
+    "date": "Date",
+    "server": "Server",
+    "provider": "Provider",
+    "amount": "Amount USDT"
+  },
+  "plural": {
+    "record": [
+      "{count} record",
+      "{count} records",
+      "{count} records"
+    ],
+    "payment": [
+      "{count} payment",
+      "{count} payments",
+      "{count} payments"
+    ],
+    "piece": [
+      "{count} pc.",
+      "{count} pc.",
+      "{count} pc."
+    ],
+    "day": [
+      "{count} d",
+      "{count} d",
+      "{count} d"
+    ],
+    "hour": [
+      "{count} h",
+      "{count} h",
+      "{count} h"
+    ],
+    "minute": [
+      "{count} min",
+      "{count} min",
+      "{count} min"
+    ]
+  },
+  "countries": {
+    "": "Not selected",
+    "RU": "Russia",
+    "DE": "Germany",
+    "NL": "Netherlands",
+    "FI": "Finland",
+    "FR": "France",
+    "GB": "United Kingdom",
+    "US": "United States",
+    "CA": "Canada",
+    "PL": "Poland",
+    "CZ": "Czechia",
+    "SE": "Sweden",
+    "NO": "Norway",
+    "CH": "Switzerland",
+    "AT": "Austria",
+    "ES": "Spain",
+    "IT": "Italy",
+    "TR": "Turkey",
+    "AE": "United Arab Emirates",
+    "KZ": "Kazakhstan",
+    "UA": "Ukraine",
+    "BY": "Belarus",
+    "LT": "Lithuania",
+    "LV": "Latvia",
+    "EE": "Estonia",
+    "RO": "Romania",
+    "BG": "Bulgaria",
+    "MD": "Moldova",
+    "GE": "Georgia",
+    "AM": "Armenia",
+    "AZ": "Azerbaijan",
+    "SG": "Singapore",
+    "JP": "Japan",
+    "KR": "South Korea",
+    "HK": "Hong Kong",
+    "IN": "India",
+    "AU": "Australia",
+    "BR": "Brazil",
+    "AR": "Argentina",
+    "MX": "Mexico",
+    "ZA": "South Africa"
+  },
+  "orientation": {
+    "title": "Rotate your phone",
+    "text": "Landscape orientation on phones is not supported. Rotate your device to portrait to use the panel."
+  }
+}
