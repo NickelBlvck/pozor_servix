@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
+// === НОВЫЕ ИМПОРТЫ ДЛЯ ВАЛЮТ И АВТОРОВ ===
+const https = require('https');
+
 process.env.TZ ||= process.env.APP_TIMEZONE || "Europe/Moscow";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -153,6 +156,8 @@ async function initDb() {
   `);
   ensureColumn("providers", "color", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("providers", "note", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("payments", "currency", "TEXT DEFAULT 'USDT'");
+  ensureColumn("payments", "author_id", "INTEGER REFERENCES payment_authors(id)");
   ensureColumn("assets", "country_code", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("assets", "sort_order", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("assets", "inactive", "INTEGER NOT NULL DEFAULT 0");
@@ -249,9 +254,7 @@ function getData() {
     SELECT id, type, name, provider_id AS providerId, expires_at AS expiresAt, ip, domain, country_code AS countryCode, sort_order AS sortOrder, inactive, created_at AS createdAt, updated_at AS updatedAt
     FROM assets ORDER BY type ASC, sort_order ASC, created_at DESC
   `).all();
-  const payments = db.prepare(`
-    SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt
-    FROM payments ORDER BY paid_at DESC, created_at DESC
+  const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId FROM payments ORDER BY paid_at DESC, created_at DESC
   `).all();
   for (const asset of assets) {
     asset.inactive = Boolean(asset.inactive);
@@ -366,6 +369,8 @@ function normalizePayments(input) {
       amount: Number(payment.amount || 0),
       paidAt: normalizeDateTime(payment.paidAt || "", { dateOnlyOk: true }),
       note: String(payment.note || "").trim(),
+      currency: String(payment.currency || "USDT").trim(),
+      authorId: payment.authorId || null,
       createdAt: payment.createdAt || new Date().toISOString()
     }))
     .filter((payment) => payment.amount > 0 || payment.paidAt || payment.note);
@@ -468,10 +473,10 @@ function upsertAsset(asset) {
       updated_at = excluded.updated_at
   `).run(asset.id, asset.type, asset.name, asset.providerId, asset.expiresAt, asset.ip, asset.domain, asset.countryCode, asset.sortOrder, asset.inactive ? 1 : 0, asset.createdAt, asset.updatedAt);
   db.prepare("DELETE FROM payments WHERE asset_id = ?").run(asset.id);
-  const stmt = db.prepare("INSERT INTO payments (id, asset_id, amount, paid_at, note, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-  for (const payment of asset.payments || []) {
-    stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt);
-  }
+  const stmt = db.prepare("INSERT INTO payments (id, asset_id, amount, paid_at, note, created_at, currency, author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+for (const payment of asset.payments || []) {
+  stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt, payment.currency, payment.authorId);
+}
   scheduleNotifications();
   return asset;
 }
@@ -1193,6 +1198,81 @@ async function serveStatic(req, res, url) {
   }
 }
 
+// === ФУНКЦИИ ДЛЯ РАБОТЫ С КУРСАМИ ВАЛЮТ ===
+
+async function getCurrencyRate(currency) {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT rate FROM currency_rates WHERE currency_code = ? ORDER BY date DESC LIMIT 1');
+    const result = stmt.get(currency);
+    return result ? result.rate : null;
+}
+
+async function updateCurrencyRate(currency, rate) {
+    const db = await getDb();
+    const stmt = db.prepare('INSERT INTO currency_rates (currency_code, rate, date) VALUES (?, ?, datetime("now"))');
+    stmt.run(currency, rate);
+}
+
+async function fetchCBRRate() {
+    return new Promise((resolve, reject) => {
+        https.get('https://www.cbr.ru/scripts/XML_daily.asp', (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                try {
+                    // Парсим XML ЦБ РФ
+                    const usdMatch = data.match(/<Valute ID="R01235">.*?<Value>([\d,]+)<\/Value>/s);
+                    const eurMatch = data.match(/<Valute ID="R01239">.*?<Value>([\d,]+)<\/Value>/s);
+                    
+                    const rates = {};
+                    if (usdMatch) {
+                        rates.USD = parseFloat(usdMatch[1].replace(',', '.'));
+                    }
+                    if (eurMatch) {
+                        rates.EUR = parseFloat(eurMatch[1].replace(',', '.'));
+                    }
+                    resolve(rates);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// === ФУНКЦИИ ДЛЯ РАБОТЫ С АВТОРАМИ ПЛАТЕЖЕЙ ===
+
+async function getPaymentAuthors() {
+    const db = await getDb();
+    const stmt = db.prepare('SELECT * FROM payment_authors WHERE is_active = 1 ORDER BY sort_order, name');
+    return stmt.all();
+}
+
+async function createPaymentAuthor(name, sortOrder = 0) {
+    const db = await getDb();
+    const stmt = db.prepare('INSERT INTO payment_authors (name, sort_order) VALUES (?, ?)');
+    const result = stmt.run(name, sortOrder);
+    return { id: result.lastInsertRowid, name, sort_order: sortOrder };
+}
+
+async function updatePaymentAuthor(id, name, sortOrder) {
+    const db = await getDb();
+    const stmt = db.prepare('UPDATE payment_authors SET name = ?, sort_order = ? WHERE id = ?');
+    stmt.run(name, sortOrder, id);
+}
+
+async function deletePaymentAuthor(id) {
+    const db = await getDb();
+    // Проверяем, есть ли платежи с этим автором
+    const checkStmt = db.prepare('SELECT COUNT(*) as count FROM payments WHERE author_id = ?');
+    const result = checkStmt.get(id);
+    if (result.count > 0) {
+        throw new Error('Нельзя удалить автора, у которого есть платежи');
+    }
+    const stmt = db.prepare('UPDATE payment_authors SET is_active = 0 WHERE id = ?');
+    stmt.run(id);
+}
+
 await initDb();
 setInterval(cleanupAuthState, 60 * 60_000).unref();
 
@@ -1205,6 +1285,95 @@ const server = createServer(async (req, res) => {
     sendJson(res, 400, { error: error.message || "Ошибка запроса" });
   }
 });
+// === API ДЛЯ КУРСОВ ВАЛЮТ ===
+
+if (url.startsWith('/api/currency/rates')) {
+    if (method === 'GET') {
+        try {
+            const rates = await fetchCBRRate();
+            // Сохраняем в БД
+            for (const [currency, rate] of Object.entries(rates)) {
+                await updateCurrencyRate(currency, rate);
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, rates }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+}
+
+if (url.startsWith('/api/currency/current')) {
+    if (method === 'GET') {
+        try {
+            const usdRate = await getCurrencyRate('USD');
+            const eurRate = await getCurrencyRate('EUR');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                success: true, 
+                rates: { USD: usdRate, EUR: eurRate }
+            }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+}
+
+// === API ДЛЯ АВТОРОВ ПЛАТЕЖЕЙ ===
+
+if (url.startsWith('/api/payment-authors')) {
+    if (method === 'GET') {
+        try {
+            const authors = await getPaymentAuthors();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, authors }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+    
+    if (method === 'POST') {
+        try {
+            const body = JSON.parse(body);
+            const author = await createPaymentAuthor(body.name, body.sort_order || 0);
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, author }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+}
+
+if (url.match(/\/api\/payment-authors\/\d+/)) {
+    const id = parseInt(url.split('/').pop());
+    
+    if (method === 'PUT') {
+        try {
+            const body = JSON.parse(body);
+            await updatePaymentAuthor(id, body.name, body.sort_order);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+    
+    if (method === 'DELETE') {
+        try {
+            await deletePaymentAuthor(id);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+        } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+        }
+    }
+}
 
 server.listen(PORT, () => {
   console.log(`${SITE_TITLE}: http://localhost:${PORT}`);

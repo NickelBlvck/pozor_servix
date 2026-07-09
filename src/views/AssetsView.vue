@@ -13,7 +13,22 @@
       </div>
       <button class="primary-button" type="button" @click="app.openAsset()"><PlusIcon :size="18" />{{ app.t("assets.add") }}</button>
     </section>
+<div class="form-group">
+  <label>{{ t('payments.currency') }}</label>
+  <select v-model="paymentForm.currency">
+    <option value="USDT">USDT</option>
+    <option value="RUB">RUB</option>
+  </select>
+</div>
 
+<div class="form-group">
+  <label>{{ t('payments.author') }}</label>
+  <select v-model="paymentForm.author_id">
+    <option v-for="author in authors" :key="author.id" :value="author.id">
+      {{ author.name }}
+    </option>
+  </select>
+</div>
     <section class="view active">
       <div class="asset-sections" v-if="app.filteredAssets.length">
         <section v-for="group in app.assetGroups" :key="group.type" class="asset-type-section">

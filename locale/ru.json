@@ -165,7 +165,10 @@
     "cardOverdue": "Просрочено",
     "segmentStable": "Стабильно",
     "segmentSoon": "Скоро",
-    "segmentOverdue": "Просрочено"
+    "segmentOverdue": "Просрочено",
+    "totalUsdt": "Всего USDT",
+    "totalRub": "Всего RUB",
+    "exchangeRate": "Курс обмена"
   },
   "alerts": {
     "emptyTitle": "Сроков нет",
@@ -200,7 +203,17 @@
     "telegramNotifyUrl": "URL уведомлений",
     "notifyOnStart": "Отправлять уведомления при старте",
     "saved": "Настройки сохранены",
-    "testTelegram": "Проверить Telegram"
+    "testTelegram": "Проверить Telegram",
+    "currency": "Валюта",
+    "defaultCurrency": "Основная валюта",
+    "enableRub": "Включить RUB",
+    "autoUpdateRates": "Автообновление курсов",
+    "updateRatesNow": "Обновить курсы сейчас",
+    "ratesUpdated": "Курсы успешно обновлены",
+    "ratesUpdateError": "Ошибка обновления курсов",
+    "paymentAuthors": "Авторы платежей",
+    "newAuthor": "Новый автор",
+    "confirmDeleteAuthor": "Удалить автора?"
   },
   "guide": {
     "subtitle": "Полное руководство по работе с панелью: записи, платежи, уведомления, безопасность и обслуживание.",
@@ -418,7 +431,10 @@
     "empty": "Платежей пока нет",
     "addAmount": "Укажите сумму платежа",
     "added": "Платеж добавлен",
-    "deleted": "Платеж удален"
+    "deleted": "Платеж удален",
+    "currency": "Валюта",
+    "author": "Автор платежа",
+    "amountRub": "Сумма RUB"
   },
   "duration": {
     "overdue": "Просрочено на {duration}",

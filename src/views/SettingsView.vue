@@ -1,5 +1,138 @@
 <template>
   <section class="view active">
+<!-- Секция валют -->
+    <div class="settings-section">
+      <h3>{{ t('settings.currency') }}</h3>
+      <div class="setting-item">
+        <label>{{ t('settings.default_currency') }}</label>
+        <select v-model="settings.default_currency" @change="saveSetting('default_currency', settings.default_currency)">
+          <option value="USDT">USDT</option>
+          <option value="RUB">RUB</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label>{{ t('settings.enable_rub') }}</label>
+        <input type="checkbox" v-model="settings.enable_rub" @change="saveSetting('enable_rub', settings.enable_rub ? '1' : '0')" />
+      </div>
+      <div class="setting-item">
+        <label>{{ t('settings.auto_update_rates') }}</label>
+        <input type="checkbox" v-model="settings.auto_update_rates" @change="saveSetting('auto_update_rates', settings.auto_update_rates ? '1' : '0')" />
+      </div>
+      <button @click="updateCurrencyRates" class="btn btn-primary">
+        {{ t('settings.update_rates_now') }}
+      </button>
+    </div>
+
+    <!-- Секция авторов платежей -->
+    <div class="settings-section">
+      <h3>{{ t('settings.payment_authors') }}</h3>
+      <div class="authors-list">
+        <div v-for="author in authors" :key="author.id" class="author-item">
+          <input 
+            type="text" 
+            v-model="author.name" 
+            @blur="updateAuthor(author)"
+            class="input"
+          />
+          <button @click="deleteAuthor(author.id)" class="btn btn-danger btn-sm">
+            {{ t('common.delete') }}
+          </button>
+        </div>
+      </div>
+      <div class="add-author">
+        <input 
+          v-model="newAuthorName" 
+          :placeholder="t('settings.new_author')"
+          class="input"
+          @keyup.enter="addAuthor"
+        />
+        <button @click="addAuthor" class="btn btn-success">
+          {{ t('common.add') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import api from '../api'
+
+const { t } = useI18n()
+const settings = ref({
+  default_currency: 'USDT',
+  enable_rub: false,
+  auto_update_rates: true
+})
+const authors = ref([])
+const newAuthorName = ref('')
+
+onMounted(async () => {
+  await loadSettings()
+  await loadAuthors()
+})
+
+async function loadSettings() {
+  const res = await api.get('/api/settings')
+  if (res.success) {
+    settings.value = {
+      default_currency: res.settings.find(s => s.key === 'default_currency')?.value || 'USDT',
+      enable_rub: res.settings.find(s => s.key === 'enable_rub')?.value === '1',
+      auto_update_rates: res.settings.find(s => s.key === 'auto_update_rates')?.value === '1'
+    }
+  }
+}
+
+async function loadAuthors() {
+  const res = await api.get('/api/payment-authors')
+  if (res.success) {
+    authors.value = res.authors
+  }
+}
+
+async function saveSetting(key, value) {
+  await api.post(`/api/settings/${key}`, { value })
+}
+
+async function updateCurrencyRates() {
+  const res = await api.get('/api/currency/rates')
+  if (res.success) {
+    alert(t('settings.rates_updated'))
+  } else {
+    alert(t('settings.rates_update_error'))
+  }
+}
+
+async function addAuthor() {
+  if (!newAuthorName.value.trim()) return
+  const res = await api.post('/api/payment-authors', {
+    name: newAuthorName.value,
+    sort_order: authors.value.length + 1
+  })
+  if (res.success) {
+    authors.value.push(res.author)
+    newAuthorName.value = ''
+  }
+}
+
+async function updateAuthor(author) {
+  await api.put(`/api/payment-authors/${author.id}`, {
+    name: author.name,
+    sort_order: author.sort_order
+  })
+}
+
+async function deleteAuthor(id) {
+  if (!confirm(t('settings.confirm_delete_author'))) return
+  const res = await api.delete(`/api/payment-authors/${id}`)
+  if (res.success) {
+    authors.value = authors.value.filter(a => a.id !== id)
+  } else {
+    alert(res.error)
+  }
+}
+</script>
     <div class="section-head">
       <div>
         <h1>{{ app.t("nav.settings") }}</h1>
