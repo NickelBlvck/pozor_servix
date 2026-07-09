@@ -69,8 +69,9 @@
     "noPeriodPayments": "За выбранный период платежей по серверам нет",
     "prevPage": "Предыдущая страница", "nextPage": "Следующая страница",
     "cardServers": "Всего серверов", "cardPaidServers": "С оплатами",
-    "cardPaidPeriod": "Уплачено за период", "cardPaidPeriodUsdt": "USDT за период", "cardPaidPeriodRub": "RUB за период", "cardPayments": "Платежей",
-    "cardAvgPayment": "Средний платеж", "cardMaxPayment": "Макс. платеж",
+    "cardPaidPeriod": "Уплачено за период", "cardPaidPeriodRub": "RUB за период", "cardPaidPeriodUsdt": "USDT за период", "cardPayments": "Платежей",
+    "cardAvgPayment": "Средний платеж", "cardAvgPaymentRub": "Средний RUB", "cardAvgPaymentUsdt": "Средний USDT",
+    "cardMaxPayment": "Макс. платеж", "cardMaxPaymentRub": "Макс. RUB", "cardMaxPaymentUsdt": "Макс. USDT",
     "cardSoon": "Скоро истекают", "cardOverdue": "Просрочено",
     "segmentStable": "Стабильно", "segmentSoon": "Скоро", "segmentOverdue": "Просрочено",
     "totalUsdt": "Всего USDT", "totalRub": "Всего RUB", "exchangeRate": "Курс обмена"

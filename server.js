@@ -877,7 +877,11 @@ function formatRub(value, locale = "ru") {
 }
 
 function formatBoth(totals, locale = "ru") {
-  return `${formatUsdt(totals.usdt, locale)} (${formatRub(totals.rub, locale)})`;
+  const rub = Number(totals.rub || 0);
+  const usdt = Number(totals.usdt || 0);
+  if (rub > 0 && usdt > 0) return `${formatRub(rub, locale)} · ${formatUsdt(usdt, locale)}`;
+  if (rub > 0) return formatRub(rub, locale);
+  return formatUsdt(usdt, locale);
 }
 
 function totalsBoth(payments = []) {

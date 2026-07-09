@@ -43,7 +43,13 @@
           <div><span>{{ t("summary.servers") }}</span><strong>{{ countByType('vps') }}</strong></div>
           <div><span>{{ t("summary.domains") }}</span><strong>{{ countByType('domain') }}</strong></div>
           <div><span>{{ t("summary.providers") }}</span><strong>{{ providers.length }}</strong></div>
-          <div class="summary-wide"><span>{{ t("summary.paid") }}</span><strong>{{ formatBoth(totalsAll) }}</strong></div>
+          <div class="summary-wide summary-paid">
+            <span>{{ t("summary.paid") }}</span>
+            <div class="summary-paid-lines">
+              <strong>{{ formatRub(totalsAll.rub) }}</strong>
+              <strong>{{ formatUsdt(totalsAll.usdt) }}</strong>
+            </div>
+          </div>
           <div class="summary-wide"><span>{{ t("summary.terms") }}</span><strong>{{ alerts.length }}</strong></div>
         </div>
         <button class="secondary-button sidebar-logout tooltip-collapsed" type="button" :data-tooltip="t('common.logout')" @click="logout"><LogOutIcon :size="18" /><span>{{ t("common.logout") }}</span></button>
@@ -493,17 +499,21 @@ export default {
         const minutes = this.minutesUntil(asset.expiresAt);
         return minutes >= 0 && minutes <= maxLeadMinutes;
       }).length;
+      const avgRub = payments.length ? periodTotals.rub / payments.length : 0;
       const avgUsdt = payments.length ? periodTotals.usdt / payments.length : 0;
       const paidVps = new Set(payments.map((payment) => payment.asset?.id)).size;
-      const maxPayment = payments.reduce((max, payment) => Math.max(max, Number(payment.usdt || 0)), 0);
+      const maxRub = payments.reduce((max, payment) => Math.max(max, Number(payment.rub || 0)), 0);
+      const maxUsdt = payments.reduce((max, payment) => Math.max(max, Number(payment.usdt || 0)), 0);
       return [
         { label: this.t("stats.cardServers"), value: this.vpsAssets.length },
         { label: this.t("stats.cardPaidServers"), value: paidVps },
-        { label: this.t("stats.cardPaidPeriodUsdt"), value: this.formatUsdt(periodTotals.usdt) },
         { label: this.t("stats.cardPaidPeriodRub"), value: this.formatRub(periodTotals.rub) },
+        { label: this.t("stats.cardPaidPeriodUsdt"), value: this.formatUsdt(periodTotals.usdt) },
         { label: this.t("stats.cardPayments"), value: payments.length },
-        { label: this.t("stats.cardAvgPayment"), value: this.formatUsdt(avgUsdt) },
-        { label: this.t("stats.cardMaxPayment"), value: this.formatUsdt(maxPayment) },
+        { label: this.t("stats.cardAvgPaymentRub"), value: this.formatRub(avgRub) },
+        { label: this.t("stats.cardAvgPaymentUsdt"), value: this.formatUsdt(avgUsdt) },
+        { label: this.t("stats.cardMaxPaymentRub"), value: this.formatRub(maxRub) },
+        { label: this.t("stats.cardMaxPaymentUsdt"), value: this.formatUsdt(maxUsdt) },
         { label: this.t("stats.cardSoon"), value: soon },
         { label: this.t("stats.cardOverdue"), value: overdue }
       ];
@@ -1143,7 +1153,9 @@ export default {
       if (!totals) return this.formatUsdt(0);
       const rub = Number(totals.rub || 0);
       const usdt = Number(totals.usdt || 0);
-      return rub > 0 ? `${this.formatUsdt(usdt)} · ${this.formatRub(rub)}` : this.formatUsdt(usdt);
+      if (rub > 0 && usdt > 0) return `${this.formatRub(rub)} · ${this.formatUsdt(usdt)}`;
+      if (rub > 0) return this.formatRub(rub);
+      return this.formatUsdt(usdt);
     },
     paymentDisplay(payment) {
       const amount = Number(payment.amount || 0);
