@@ -1,145 +1,83 @@
 <template>
   <section class="view active">
-<!-- Секция валют -->
-    <div class="settings-section">
-      <h3>{{ t('settings.currency') }}</h3>
-      <div class="setting-item">
-        <label>{{ t('settings.default_currency') }}</label>
-        <select v-model="settings.default_currency" @change="saveSetting('default_currency', settings.default_currency)">
-          <option value="USDT">USDT</option>
-          <option value="RUB">RUB</option>
-        </select>
-      </div>
-      <div class="setting-item">
-        <label>{{ t('settings.enable_rub') }}</label>
-        <input type="checkbox" v-model="settings.enable_rub" @change="saveSetting('enable_rub', settings.enable_rub ? '1' : '0')" />
-      </div>
-      <div class="setting-item">
-        <label>{{ t('settings.auto_update_rates') }}</label>
-        <input type="checkbox" v-model="settings.auto_update_rates" @change="saveSetting('auto_update_rates', settings.auto_update_rates ? '1' : '0')" />
-      </div>
-      <button @click="updateCurrencyRates" class="btn btn-primary">
-        {{ t('settings.update_rates_now') }}
-      </button>
-    </div>
-
-    <!-- Секция авторов платежей -->
-    <div class="settings-section">
-      <h3>{{ t('settings.payment_authors') }}</h3>
-      <div class="authors-list">
-        <div v-for="author in authors" :key="author.id" class="author-item">
-          <input 
-            type="text" 
-            v-model="author.name" 
-            @blur="updateAuthor(author)"
-            class="input"
-          />
-          <button @click="deleteAuthor(author.id)" class="btn btn-danger btn-sm">
-            {{ t('common.delete') }}
-          </button>
-        </div>
-      </div>
-      <div class="add-author">
-        <input 
-          v-model="newAuthorName" 
-          :placeholder="t('settings.new_author')"
-          class="input"
-          @keyup.enter="addAuthor"
-        />
-        <button @click="addAuthor" class="btn btn-success">
-          {{ t('common.add') }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import api from '../api'
-
-const { t } = useI18n()
-const settings = ref({
-  default_currency: 'USDT',
-  enable_rub: false,
-  auto_update_rates: true
-})
-const authors = ref([])
-const newAuthorName = ref('')
-
-onMounted(async () => {
-  await loadSettings()
-  await loadAuthors()
-})
-
-async function loadSettings() {
-  const res = await api.get('/api/settings')
-  if (res.success) {
-    settings.value = {
-      default_currency: res.settings.find(s => s.key === 'default_currency')?.value || 'USDT',
-      enable_rub: res.settings.find(s => s.key === 'enable_rub')?.value === '1',
-      auto_update_rates: res.settings.find(s => s.key === 'auto_update_rates')?.value === '1'
-    }
-  }
-}
-
-async function loadAuthors() {
-  const res = await api.get('/api/payment-authors')
-  if (res.success) {
-    authors.value = res.authors
-  }
-}
-
-async function saveSetting(key, value) {
-  await api.post(`/api/settings/${key}`, { value })
-}
-
-async function updateCurrencyRates() {
-  const res = await api.get('/api/currency/rates')
-  if (res.success) {
-    alert(t('settings.rates_updated'))
-  } else {
-    alert(t('settings.rates_update_error'))
-  }
-}
-
-async function addAuthor() {
-  if (!newAuthorName.value.trim()) return
-  const res = await api.post('/api/payment-authors', {
-    name: newAuthorName.value,
-    sort_order: authors.value.length + 1
-  })
-  if (res.success) {
-    authors.value.push(res.author)
-    newAuthorName.value = ''
-  }
-}
-
-async function updateAuthor(author) {
-  await api.put(`/api/payment-authors/${author.id}`, {
-    name: author.name,
-    sort_order: author.sort_order
-  })
-}
-
-async function deleteAuthor(id) {
-  if (!confirm(t('settings.confirm_delete_author'))) return
-  const res = await api.delete(`/api/payment-authors/${id}`)
-  if (res.success) {
-    authors.value = authors.value.filter(a => a.id !== id)
-  } else {
-    alert(res.error)
-  }
-}
-</script>
     <div class="section-head">
       <div>
         <h1>{{ app.t("nav.settings") }}</h1>
         <span>{{ app.t("settings.subtitle") }}</span>
       </div>
     </div>
+
+    <!-- Секция валют -->
     <div class="settings-stack">
+      <div class="settings-panel">
+        <div class="settings-card-head">
+          <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
+          <div>
+            <h2>{{ t('settings.currency') }}</h2>
+            <span>Настройки мультивалютности</span>
+          </div>
+        </div>
+        <div class="settings-form-grid">
+          <label>
+            {{ t('settings.default_currency') }}
+            <select v-model="settings.default_currency" @change="saveSetting('default_currency', settings.default_currency)">
+              <option value="USDT">USDT</option>
+              <option value="RUB">RUB</option>
+            </select>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" v-model="settings.enable_rub" @change="saveSetting('enable_rub', settings.enable_rub ? '1' : '0')" />
+            {{ t('settings.enable_rub') }}
+          </label>
+          <label class="check-row">
+            <input type="checkbox" v-model="settings.auto_update_rates" @change="saveSetting('auto_update_rates', settings.auto_update_rates ? '1' : '0')" />
+            {{ t('settings.auto_update_rates') }}
+          </label>
+        </div>
+        <button @click="updateCurrencyRates" class="primary-button" type="button">
+          {{ t('settings.update_rates_now') }}
+        </button>
+      </div>
+
+      <!-- Секция авторов платежей -->
+      <div class="settings-panel">
+        <div class="settings-card-head">
+          <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
+          <div>
+            <h2>{{ t('settings.payment_authors') }}</h2>
+            <span>Управление авторами платежей</span>
+          </div>
+        </div>
+        <div class="authors-list">
+          <div v-for="author in authors" :key="author.id" class="author-item">
+            <input 
+              type="text" 
+              v-model="author.name" 
+              @blur="updateAuthor(author)"
+              class="input"
+              placeholder="Имя автора"
+            />
+            <button @click="deleteAuthor(author.id)" class="danger-button" type="button">
+              {{ t('common.delete') }}
+            </button>
+          </div>
+          <div v-if="authors.length === 0" class="hint">
+            {{ t('settings.payment_authors') }} пока нет
+          </div>
+        </div>
+        <div class="add-author">
+          <input 
+            v-model="newAuthorName" 
+            :placeholder="t('settings.new_author')"
+            class="input"
+            @keyup.enter="addAuthor"
+          />
+          <button @click="addAuthor" class="primary-button" type="button">
+            {{ t('common.add') }}
+          </button>
+        </div>
+      </div>
+
       <form class="settings-panel settings-panel-wide" @submit.prevent="app.saveSettings">
         <div class="settings-card-head">
           <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
@@ -218,6 +156,114 @@ async function deleteAuthor(id) {
   </section>
 </template>
 
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import api from '../api'
+
+const { t } = useI18n()
+const settings = ref({
+  default_currency: 'USDT',
+  enable_rub: false,
+  auto_update_rates: true
+})
+const authors = ref([])
+const newAuthorName = ref('')
+
+onMounted(async () => {
+  await loadSettings()
+  await loadAuthors()
+})
+
+async function loadSettings() {
+  try {
+    const res = await api.get('/api/settings')
+    if (res && res.settings) {
+      settings.value = {
+        default_currency: res.settings.find(s => s.key === 'default_currency')?.value || 'USDT',
+        enable_rub: res.settings.find(s => s.key === 'enable_rub')?.value === '1',
+        auto_update_rates: res.settings.find(s => s.key === 'auto_update_rates')?.value === '1'
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error)
+  }
+}
+
+async function loadAuthors() {
+  try {
+    const res = await api.get('/api/payment-authors')
+    if (res && res.success) {
+      authors.value = res.authors || []
+    }
+  } catch (error) {
+    console.error('Failed to load authors:', error)
+  }
+}
+
+async function saveSetting(key, value) {
+  try {
+    await api.post(`/api/settings/${key}`, { value })
+  } catch (error) {
+    console.error('Failed to save setting:', error)
+  }
+}
+
+async function updateCurrencyRates() {
+  try {
+    const res = await api.get('/api/currency/rates')
+    if (res && res.success) {
+      alert(t('settings.rates_updated'))
+    } else {
+      alert(t('settings.rates_update_error'))
+    }
+  } catch (error) {
+    alert(t('settings.rates_update_error'))
+  }
+}
+
+async function addAuthor() {
+  if (!newAuthorName.value.trim()) return
+  try {
+    const res = await api.post('/api/payment-authors', {
+      name: newAuthorName.value,
+      sort_order: authors.value.length + 1
+    })
+    if (res && res.success) {
+      authors.value.push(res.author)
+      newAuthorName.value = ''
+    }
+  } catch (error) {
+    console.error('Failed to add author:', error)
+  }
+}
+
+async function updateAuthor(author) {
+  try {
+    await api.put(`/api/payment-authors/${author.id}`, {
+      name: author.name,
+      sort_order: author.sort_order
+    })
+  } catch (error) {
+    console.error('Failed to update author:', error)
+  }
+}
+
+async function deleteAuthor(id) {
+  if (!confirm(t('settings.confirm_delete_author'))) return
+  try {
+    const res = await api.delete(`/api/payment-authors/${id}`)
+    if (res && res.success) {
+      authors.value = authors.value.filter(a => a.id !== id)
+    } else {
+      alert(res?.error || 'Ошибка удаления')
+    }
+  } catch (error) {
+    alert(error.message || 'Ошибка удаления')
+  }
+}
+</script>
+
 <script>
 import { KeyRound as KeyRoundIcon, QrCode as QrCodeIcon, Save as SaveIcon, Send as SendIcon, Settings as SettingsIcon, ShieldCheck as ShieldCheckIcon } from "@lucide/vue";
 
@@ -228,3 +274,32 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+.authors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.author-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.author-item .input {
+  flex: 1;
+}
+
+.add-author {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.add-author .input {
+  flex: 1;
+}
+</style>
