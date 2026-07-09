@@ -10,7 +10,7 @@ import https from "node:https";
 process.env.TZ ||= process.env.APP_TIMEZONE || "Europe/Moscow";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const SITE_TITLE = process.env.SITE_TITLE || "SERVIX";
+const SITE_TITLE = process.env.SITE_TITLE || 'SERVIX';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "servix.sqlite");
 const ACCESS_LOG_FILE = path.join(DATA_DIR, "access.log");
@@ -33,10 +33,10 @@ let notificationTimer = null;
 const locales = loadLocales();
 
 const countryFlags = {
-  "": "🌐", RU: "🇷🇺", DE: "🇩🇪", NL: "🇳🇱", FI: "🇫🇮", FR: "🇫🇷", GB: "🇬🇧", US: "🇺🇸", CA: "🇨🇦", PL: "🇵🇱", CZ: "🇨🇿",
-  SE: "🇸🇪", NO: "🇳🇴", CH: "🇨🇭", AT: "🇦🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇹🇷", AE: "🇦🇪", KZ: "🇰🇿", UA: "🇺🇦",
-  BY: "🇧🇾", LT: "🇱🇹", LV: "🇱🇻", EE: "🇪🇪", RO: "🇷🇴", BG: "🇧🇬", MD: "🇲🇩", GE: "🇬🇪", AM: "🇦🇲", AZ: "🇦🇿",
-  SG: "🇸🇬", JP: "🇯🇵", KR: "🇰🇷", HK: "🇭🇰", IN: "🇮🇳", AU: "🇦🇺", BR: "🇧🇷", AR: "🇦🇷", MX: "🇲🇽", ZA: "🇿🇦"
+  "": "🌐", RU: "🇺", DE: "🇪", NL: "🇳🇱", FI: "🇫🇮", FR: "🇷", GB: "🇬🇧", US: "🇺🇸", CA: "🇦", PL: "🇱", CZ: "🇿",
+  SE: "🇪", NO: "🇳🇴", CH: "🇭", AT: "🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇷", AE: "🇦", KZ: "🇰", UA: "🇺🇦",
+  BY: "🇧", LT: "🇱🇹", LV: "🇱🇻", EE: "🇪🇪", RO: "🇷🇴", BG: "🇧🇬", MD: "🇲🇩", GE: "🇬🇪", AM: "🇲", AZ: "🇦🇿",
+  SG: "🇸🇬", JP: "🇯🇵", KR: "🇰🇷", HK: "🇭🇰", IN: "🇳", AU: "🇦🇺", BR: "🇷", AR: "🇦🇷", MX: "🇽", ZA: "🇿"
 };
 
 const mimeTypes = {
@@ -106,7 +106,7 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL );
     CREATE TABLE IF NOT EXISTS providers ( id TEXT PRIMARY KEY, name TEXT NOT NULL, login_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
     CREATE TABLE IF NOT EXISTS assets ( id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, provider_id TEXT NOT NULL DEFAULT '', expires_at TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '', domain TEXT NOT NULL DEFAULT '', country_code TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
-    CREATE TABLE IF NOT EXISTS payments ( id TEXT PRIMARY KEY, asset_id TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, paid_at TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE );
+    CREATE TABLE IF NOT EXISTS payments ( id TEXT PRIMARY KEY, asset_id TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, paid_at TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, currency TEXT NOT NULL DEFAULT 'USDT', author_id TEXT NOT NULL DEFAULT '', FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE );
     CREATE TABLE IF NOT EXISTS telegram_sent ( event_id TEXT PRIMARY KEY, sent_at TEXT NOT NULL );
     CREATE TABLE IF NOT EXISTS users ( id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
     CREATE TABLE IF NOT EXISTS currency_rates ( id INTEGER PRIMARY KEY AUTOINCREMENT, currency_code TEXT NOT NULL, rate REAL NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')) );
@@ -841,9 +841,7 @@ function countryLabel(code, locale = "ru") {
 }
 
 function formatDateTime(value, locale = "ru") {
-  const parsed = parseAppDate(value);
-  if (!parsed) return "";
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: getMeta().timezone }).format(parsed);
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: getMeta().timezone }).format(parseAppDate(value));
 }
 
 function formatDuration(minutes, locale = "ru") {

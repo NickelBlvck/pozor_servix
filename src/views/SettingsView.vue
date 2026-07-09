@@ -6,37 +6,37 @@
         <span>{{ app.t("settings.subtitle") }}</span>
       </div>
     </div>
-
-    <!-- Секция валют -->
     <div class="settings-stack">
+      <!-- Секция валют -->
       <div class="settings-panel">
         <div class="settings-card-head">
           <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
           <div>
             <h2>{{ app.t('settings.currency') }}</h2>
-            <span>Настройки мультивалютности</span>
+            <span>{{ app.t('settings.currencySubtitle') }}</span>
           </div>
         </div>
         <div class="settings-form-grid">
           <label>
             {{ app.t('settings.default_currency') }}
-            <select v-model="currencySettings.default_currency" @change="saveCurrencySetting('default_currency', currencySettings.default_currency)">
+            <select v-model="currencySettings.default_currency">
               <option value="USDT">USDT</option>
               <option value="RUB">RUB</option>
             </select>
           </label>
           <label class="check-row">
-            <input type="checkbox" v-model="currencySettings.enable_rub" @change="saveCurrencySetting('enable_rub', currencySettings.enable_rub ? '1' : '0')" />
-            {{ app.t('settings.enable_rub') }}
-          </label>
-          <label class="check-row">
-            <input type="checkbox" v-model="currencySettings.auto_update_rates" @change="saveCurrencySetting('auto_update_rates', currencySettings.auto_update_rates ? '1' : '0')" />
+            <input type="checkbox" v-model="currencySettings.auto_update_rates" />
             {{ app.t('settings.auto_update_rates') }}
           </label>
         </div>
-        <button @click="updateCurrencyRates" class="primary-button" type="button">
-          {{ app.t('settings.update_rates_now') }}
-        </button>
+        <div class="settings-inline-footer">
+          <button @click="updateCurrencyRates" class="primary-button" type="button">
+            {{ app.t('settings.update_rates_now') }}
+          </button>
+          <button @click="saveCurrencySettings" class="primary-button" type="button">
+            {{ app.t('common.save') }}
+          </button>
+        </div>
       </div>
 
       <!-- Секция авторов платежей -->
@@ -45,14 +45,14 @@
           <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
           <div>
             <h2>{{ app.t('settings.payment_authors') }}</h2>
-            <span>Управление авторами платежей</span>
+            <span>{{ app.t('settings.payment_authors_subtitle') }}</span>
           </div>
         </div>
         <div class="authors-list">
           <div v-for="author in authors" :key="author.id" class="author-item">
-            <input 
-              type="text" 
-              v-model="author.name" 
+            <input
+              type="text"
+              v-model="author.name"
               @blur="updateAuthor(author)"
               class="input"
               placeholder="Имя автора"
@@ -66,14 +66,14 @@
           </div>
         </div>
         <div class="add-author">
-          <input 
-            v-model="newAuthorName" 
+          <input
+            v-model="newAuthorName"
             :placeholder="app.t('settings.new_author')"
             class="input"
             @keyup.enter="addAuthor"
           />
           <button @click="addAuthor" class="primary-button" type="button">
-            {{ app.t('common.add') }}
+            Добавить автора
           </button>
         </div>
       </div>
@@ -165,7 +165,6 @@ const props = defineProps({
 
 const currencySettings = ref({
   default_currency: 'USDT',
-  enable_rub: false,
   auto_update_rates: true
 })
 const authors = ref([])
@@ -178,13 +177,12 @@ onMounted(async () => {
 
 async function loadCurrencySettings() {
   try {
-    const res = await fetch('/api/settings')
+    const res = await fetch('/api/assets')
     const data = await res.json()
     if (data && data.meta) {
       currencySettings.value = {
         default_currency: data.meta.default_currency || 'USDT',
-        enable_rub: data.meta.enable_rub === '1',
-        auto_update_rates: data.meta.auto_update_rates === '1'
+        auto_update_rates: data.meta.auto_update_rates === true || data.meta.auto_update_rates === '1'
       }
     }
   } catch (error) {
@@ -204,15 +202,21 @@ async function loadAuthors() {
   }
 }
 
-async function saveCurrencySetting(key, value) {
+async function saveCurrencySettings() {
   try {
-    await fetch(`/api/settings/${key}`, {
+    await fetch('/api/settings/default_currency', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value })
+      body: JSON.stringify({ value: currencySettings.value.default_currency })
     })
+    await fetch('/api/settings/auto_update_rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: currencySettings.value.auto_update_rates ? '1' : '0' })
+    })
+    alert(props.app.t('settings.saved'))
   } catch (error) {
-    console.error('Failed to save currency setting:', error)
+    console.error('Failed to save currency settings:', error)
   }
 }
 
