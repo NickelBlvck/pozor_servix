@@ -3,7 +3,7 @@ services:
     build: .
     container_name: servix
     ports:
-      - "3000:3000"
+      - "4505:3000"
     environment:
       SITE_TITLE: "SERVIX"
       DATA_DIR: "/app/data"
