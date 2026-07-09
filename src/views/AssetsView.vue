@@ -13,22 +13,6 @@
       </div>
       <button class="primary-button" type="button" @click="app.openAsset()"><PlusIcon :size="18" />{{ app.t("assets.add") }}</button>
     </section>
-<div class="form-group">
-  <label>{{ t('payments.currency') }}</label>
-  <select v-model="paymentForm.currency">
-    <option value="USDT">USDT</option>
-    <option value="RUB">RUB</option>
-  </select>
-</div>
-
-<div class="form-group">
-  <label>{{ t('payments.author') }}</label>
-  <select v-model="paymentForm.author_id">
-    <option v-for="author in authors" :key="author.id" :value="author.id">
-      {{ author.name }}
-    </option>
-  </select>
-</div>
     <section class="view active">
       <div class="asset-sections" v-if="app.filteredAssets.length">
         <section v-for="group in app.assetGroups" :key="group.type" class="asset-type-section">
@@ -54,7 +38,7 @@
                   <span v-else class="favicon-placeholder">{{ app.providerInitial(asset) }}</span>
                   <div>
                     <h2>{{ asset.name }}</h2>
-                    <span v-if="asset.type === 'vps'">{{ app.assetSubtitle(asset) }}</span>
+                    <span v-if="asset.type === 'vps'"><CountryFlag v-if="asset.countryCode" :code="asset.countryCode" /> {{ app.assetSubtitle(asset) }}</span>
                     <a v-else-if="asset.domain" class="card-subtitle-link" :href="app.domainHref(asset.domain)" target="_blank" rel="noreferrer">{{ asset.domain }}</a>
                     <span v-else>{{ app.assetSubtitle(asset) }}</span>
                   </div>
@@ -70,7 +54,7 @@
                 <span>{{ app.daysText(asset.expiresAt) }}</span>
               </div>
               <div class="payment-strip">
-                <strong>{{ app.formatUsdt(app.totalPayments(asset.payments)) }}</strong>
+                <strong>{{ app.formatBoth(app.totalsBoth(asset.payments)) }}</strong>
                 <span>{{ app.tc("payment", asset.payments?.length || 0) }}</span>
               </div>
               <footer>
@@ -101,9 +85,10 @@
 
 <script>
 import { ArchiveX as ArchiveXIcon, CalendarClock as CalendarClockIcon, CreditCard as CreditCardIcon, ExternalLink as ExternalLinkIcon, Pencil as PencilIcon, Plus as PlusIcon, RotateCcw as RotateCcwIcon } from "@lucide/vue";
+import CountryFlag from "../components/CountryFlag.vue";
 
 export default {
-  components: { ArchiveXIcon, CalendarClockIcon, CreditCardIcon, ExternalLinkIcon, PencilIcon, PlusIcon, RotateCcwIcon },
+  components: { ArchiveXIcon, CalendarClockIcon, CountryFlag, CreditCardIcon, ExternalLinkIcon, PencilIcon, PlusIcon, RotateCcwIcon },
   props: {
     app: { type: Object, required: true }
   }

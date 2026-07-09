@@ -200,7 +200,23 @@
     "telegramNotifyUrl": "Notification URL",
     "notifyOnStart": "Send notifications on start",
     "saved": "Settings saved",
-    "testTelegram": "Test Telegram"
+    "testTelegram": "Test Telegram",
+    "currency": "Currency",
+    "currencySubtitle": "Multi-currency settings",
+    "default_currency": "Default currency",
+    "auto_update_rates": "Auto-update exchange rates",
+    "update_rates_now": "Update rates now",
+    "rates_updated": "Rates updated successfully",
+    "rates_update_error": "Error updating rates",
+    "payment_authors": "Payment authors",
+    "payment_authors_subtitle": "Manage payment authors",
+    "new_author": "New author",
+    "confirm_delete_author": "Delete author?",
+    "save_currency": "Save currency settings",
+    "add_author": "Add author",
+    "author_added": "Author added",
+    "author_deleted": "Author deleted",
+    "author_delete_error": "Error deleting author"
   },
   "guide": {
     "subtitle": "A complete manual for records, payments, notifications, security, and operating practices.",
@@ -418,7 +434,11 @@
     "empty": "No payments yet",
     "addAmount": "Enter payment amount",
     "added": "Payment added",
-    "deleted": "Payment deleted"
+    "deleted": "Payment deleted",
+    "currency": "Currency",
+    "author": "Payment author",
+    "amountRub": "Amount RUB",
+    "noAuthor": "No author"
   },
   "duration": {
     "overdue": "Overdue by {duration}",

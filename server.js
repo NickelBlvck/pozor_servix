@@ -32,12 +32,11 @@ let db;
 let notificationTimer = null;
 const locales = loadLocales();
 
-const countryFlags = {
-  "": "🌐", RU: "🇷🇺", DE: "🇩🇪", NL: "🇳🇱", FI: "🇮", FR: "🇫🇷", GB: "🇬", US: "🇺🇸", CA: "🇨🇦", PL: "🇵🇱", CZ: "🇿",
-  SE: "🇪", NO: "🇳🇴", CH: "🇨🇭", AT: "🇦🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇹🇷", AE: "🇪", KZ: "🇰🇿", UA: "🇺",
-  BY: "🇧🇾", LT: "🇱", LV: "🇱🇻", EE: "🇪🇪", RO: "🇷🇴", BG: "🇬", MD: "🇲", GE: "🇬🇪", AM: "🇦🇲", AZ: "🇦🇿",
-  SG: "🇸🇬", JP: "🇯🇵", KR: "🇷", HK: "🇭", IN: "🇮🇳", AU: "🇦🇺", BR: "🇧🇷", AR: "🇦🇷", MX: "🇲🇽", ZA: "🇦"
-};
+function countryFlag(code) {
+  const countryCode = String(code || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(countryCode)) return "🌐";
+  return [...countryCode].map((char) => String.fromCodePoint(127397 + char.charCodeAt(0))).join("");
+}
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -211,11 +210,14 @@ function getData() {
   const providers = db.prepare(`SELECT id, name, login_url AS loginUrl, favicon_url AS faviconUrl, color, note, created_at AS createdAt, updated_at AS updatedAt FROM providers ORDER BY created_at DESC`).all();
   const assets = db.prepare(`SELECT id, type, name, provider_id AS providerId, expires_at AS expiresAt, ip, domain, country_code AS countryCode, sort_order AS sortOrder, inactive, created_at AS createdAt, updated_at AS updatedAt FROM assets ORDER BY type ASC, sort_order ASC, created_at DESC`).all();
   const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId FROM payments ORDER BY paid_at DESC, created_at DESC`).all();
+  const authors = db.prepare(`SELECT id, name, sort_order AS sortOrder, is_active AS isActive FROM payment_authors WHERE is_active = 1 ORDER BY sort_order ASC, name ASC`).all();
+  const authorNames = new Map(authors.map((author) => [author.id, author.name]));
   for (const asset of assets) {
     asset.inactive = Boolean(asset.inactive);
-    asset.payments = payments.filter((payment) => payment.assetId === asset.id).map(({ assetId, ...payment }) => payment);
+    asset.payments = payments.filter((payment) => payment.assetId === asset.id)
+      .map(({ assetId, authorId, ...payment }) => enrichPayment(payment, authorNames.get(authorId) || ""));
   }
-  return { meta: getMeta(), providers, assets };
+  return { meta: getMeta(), providers, assets, authors, rates: getCurrentRates() };
 }
 
 function securityHeaders(extra = {}) {
@@ -810,7 +812,7 @@ function alertText(item, locale = "ru") {
   const asset = item.asset;
   const provider = item.provider;
   const target = asset.type === "vps" ? asset.ip : asset.domain;
-  const paid = totalPayments(asset.payments);
+  const totals = totalsBoth(asset.payments || []);
   const country = asset.type === "vps" && asset.countryCode ? countryLabel(asset.countryCode, locale) : "";
   const lines = [
     t(locale, "telegram.title"),
@@ -822,7 +824,7 @@ function alertText(item, locale = "ru") {
     `<b>${escapeTelegram(t(locale, "telegram.expiresAt"))}:</b> ${escapeTelegram(formatDateTime(asset.expiresAt, locale))}`,
     `<b>${escapeTelegram(t(locale, "telegram.left"))}:</b> ${escapeTelegram(when)}`,
     item.lead ? `<b>${escapeTelegram(t(locale, "telegram.trigger"))}:</b> ${escapeTelegram(t(locale, "telegram.triggerBefore", { lead: formatLead(item.lead, locale) }))}` : "",
-    `<b>${escapeTelegram(t(locale, "telegram.paidTotal"))}:</b> ${escapeTelegram(formatUsdt(paid, locale))}`
+    `<b>${escapeTelegram(t(locale, "telegram.paidTotal"))}:</b> ${escapeTelegram(formatBoth(totals, locale))}`
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -833,7 +835,7 @@ function escapeTelegram(value) {
 
 function countryLabel(code, locale = "ru") {
   const countryCode = String(code || "").toUpperCase();
-  const flag = countryFlags[countryCode] || countryFlags[""];
+  const flag = countryFlag(countryCode);
   const name = t(locale, `countries.${countryCode}`) || t(locale, "common.countryEmpty");
   return countryCode ? `${flag} ${name}` : name;
 }
@@ -862,8 +864,25 @@ function formatUsdt(value, locale = "ru") {
   return `${new Intl.NumberFormat(locale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 6 }).format(Number(value || 0))} USDT`;
 }
 
+function formatRub(value, locale = "ru") {
+  return `${new Intl.NumberFormat(locale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 2 }).format(Number(value || 0))} ₽`;
+}
+
+function formatBoth(totals, locale = "ru") {
+  return `${formatUsdt(totals.usdt, locale)} (${formatRub(totals.rub, locale)})`;
+}
+
+function totalsBoth(payments = []) {
+  return payments.reduce((acc, payment) => {
+    const enriched = payment.usdt !== undefined ? payment : enrichPayment(payment);
+    acc.usdt += Number(enriched.usdt || 0);
+    acc.rub += Number(enriched.rub || 0);
+    return acc;
+  }, { usdt: 0, rub: 0 });
+}
+
 function totalPayments(payments = []) {
-  return payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  return payments.reduce((sum, payment) => sum + Number(payment.usdt || payment.amount || 0), 0);
 }
 
 function wasSent(eventIdValue) {
@@ -927,15 +946,22 @@ function scheduleNotifications() {
 function fetchCBRRate() {
   return new Promise((resolve, reject) => {
     https.get("https://www.cbr.ru/scripts/XML_daily.asp", (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`ЦБ РФ вернул статус ${res.statusCode}`));
+        res.resume();
+        return;
+      }
       let data = "";
       res.on("data", (chunk) => data += chunk);
       res.on("end", () => {
         try {
-          const usdMatch = data.match(/<Valute ID="R01235">[\s\S]*?<Value>([\d,\s]+)<\/Value>/);
-          const eurMatch = data.match(/<Valute ID="R01239">[\s\S]*?<Value>([\d,\s]+)<\/Value>/);
-          const result = {};
-          if (usdMatch) result.USD = parseFloat(usdMatch[1].replace(",", ".").replace(/\s/g, ""));
-          if (eurMatch) result.EUR = parseFloat(eurMatch[1].replace(",", ".").replace(/\s/g, ""));
+          const parsed = new DOMParserLite(data);
+          const date = parsed.date();
+          const usd = parsed.value("R01235");
+          const eur = parsed.value("R01239");
+          if (!usd) throw new Error("Не удалось извлечь курс USD из ответа ЦБ РФ");
+          const result = { date, USD: usd, USDT: usd };
+          if (eur) result.EUR = eur;
           resolve(result);
         } catch (e) {
           reject(e);
@@ -945,17 +971,71 @@ function fetchCBRRate() {
   });
 }
 
-function getCurrentRates() {
-  const usd = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = 'USD' ORDER BY date DESC LIMIT 1").get();
-  const eur = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = 'EUR' ORDER BY date DESC LIMIT 1").get();
-  return { USD: usd?.rate || null, EUR: eur?.rate || null };
+// Лёгкий парсер ответа ЦБ РФ без внешних зависимостей
+class DOMParserLite {
+  constructor(xml) {
+    this.xml = String(xml || "");
+  }
+  date() {
+    const match = this.xml.match(/<ValCurs[^>]*Date="([^"]+)"/);
+    if (!match) return new Date().toISOString().slice(0, 10);
+    const [d, m, y] = match[1].split(".");
+    return `${y}-${m}-${d}`;
+  }
+  value(valuteId) {
+    const re = new RegExp(`<Valute ID="${valuteId}">[\\s\\S]*?<Value>([\\d,\\s]+)</Value>`);
+    const match = this.xml.match(re);
+    if (!match) return null;
+    return parseFloat(match[1].replace(",", ".").replace(/\s/g, ""));
+  }
 }
 
-function saveCurrencyRates(rates) {
+const FALLBACK_USD_RUB = 90;
+
+function getRateForDate(currency, dateStr = "") {
+  const code = String(currency || "USDT").toUpperCase();
+  if (code === "RUB") return 1;
+  const target = code === "USDT" ? "USD" : code;
+  const day = String(dateStr || "").slice(0, 10);
+  let row;
+  if (day) {
+    row = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = ? AND date <= ? ORDER BY date DESC LIMIT 1").get(target, day);
+  }
+  if (!row) row = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = ? ORDER BY date DESC LIMIT 1").get(target);
+  if (!row) {
+    console.warn(`Курс ${target} не найден, использую фолбэк ${FALLBACK_USD_RUB}`);
+    return FALLBACK_USD_RUB;
+  }
+  return row.rate;
+}
+
+function getCurrentRates() {
+  const codes = ["USDT", "USD", "EUR"];
+  const result = {};
+  for (const code of codes) {
+    const target = code === "USDT" ? "USD" : code;
+    const row = db.prepare("SELECT rate, date FROM currency_rates WHERE currency_code = ? ORDER BY date DESC LIMIT 1").get(target);
+    if (row) result[code] = { rate: row.rate, date: row.date };
+  }
+  return result;
+}
+
+function saveCurrencyRates(rates, date) {
+  const stamp = String(date || new Date().toISOString().slice(0, 10));
   const now = new Date().toISOString();
   for (const [currency, rate] of Object.entries(rates)) {
-    db.prepare("INSERT INTO currency_rates (currency_code, rate, date, created_at) VALUES (?, ?, ?, ?)").run(currency, rate, now, now);
+    if (!Number.isFinite(rate)) continue;
+    db.prepare("INSERT INTO currency_rates (currency_code, rate, date, created_at) VALUES (?, ?, ?, ?)").run(currency, rate, stamp, now);
   }
+}
+
+function enrichPayment(payment, authorName = "") {
+  const amount = Number(payment.amount || 0);
+  const currency = String(payment.currency || "USDT").toUpperCase();
+  const rate = getRateForDate(currency, payment.paidAt);
+  const rub = currency === "RUB" ? amount : amount * rate;
+  const usdt = currency === "USDT" ? amount : amount / rate;
+  return { ...payment, rate, rub, usdt, authorName };
 }
 
 function getPaymentAuthors() {
@@ -1064,7 +1144,7 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/currency/rates") {
     try {
       const rates = await fetchCBRRate();
-      saveCurrencyRates(rates);
+      saveCurrencyRates(rates, rates.date);
       return sendJson(res, 200, { success: true, rates });
     } catch (error) {
       return sendJson(res, 500, { success: false, error: error.message });
@@ -1250,6 +1330,10 @@ async function serveStatic(req, res, url) {
 
 await initDb();
 setInterval(cleanupAuthState, 60 * 60_000).unref();
+
+if (getMeta().auto_update_rates) {
+  fetchCBRRate().then((rates) => saveCurrencyRates(rates, rates.date)).catch((error) => console.warn(`Автообновление курса: ${error.message}`));
+}
 
 const server = createServer(async (req, res) => {
   try {

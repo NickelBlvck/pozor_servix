@@ -102,7 +102,10 @@
     "rates_update_error": "Ошибка обновления курсов", "payment_authors": "Авторы платежей",
     "payment_authors_subtitle": "Управление авторами платежей",
     "new_author": "Новый автор", "confirm_delete_author": "Удалить автора?",
-    "save_currency": "Сохранить настройки валют"
+    "save_currency": "Сохранить настройки валют",
+    "add_author": "Добавить автора",
+    "author_added": "Автор добавлен", "author_deleted": "Автор удалён",
+    "author_delete_error": "Ошибка удаления автора"
   },
   "guide": {
     "subtitle": "Полное руководство по работе с панелью: записи, платежи, уведомления, безопасность и обслуживание.",
@@ -318,7 +321,8 @@
     "title": "Платежи: {name}", "amountUsdt": "Сумма USDT",
     "empty": "Платежей пока нет", "addAmount": "Укажите сумму платежа",
     "added": "Платеж добавлен", "deleted": "Платеж удален",
-    "currency": "Валюта", "author": "Автор платежа", "amountRub": "Сумма RUB"
+    "currency": "Валюта", "author": "Автор платежа", "amountRub": "Сумма RUB",
+    "noAuthor": "Без автора"
   },
   "duration": {
     "overdue": "Просрочено на {duration}", "expiresNow": "Истекает сейчас",

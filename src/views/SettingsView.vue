@@ -73,7 +73,7 @@
             @keyup.enter="addAuthor"
           />
           <button @click="addAuthor" class="primary-button" type="button">
-            Добавить автора
+            {{ app.t('settings.add_author') }}
           </button>
         </div>
       </div>
@@ -177,8 +177,7 @@ onMounted(async () => {
 
 async function loadCurrencySettings() {
   try {
-    const res = await fetch('/api/assets')
-    const data = await res.json()
+    const data = await props.app.api('/api/assets')
     if (data && data.meta) {
       currencySettings.value = {
         default_currency: data.meta.default_currency || 'USDT',
@@ -192,8 +191,7 @@ async function loadCurrencySettings() {
 
 async function loadAuthors() {
   try {
-    const res = await fetch('/api/payment-authors')
-    const data = await res.json()
+    const data = await props.app.api('/api/payment-authors')
     if (data && data.success) {
       authors.value = data.authors || []
     }
@@ -204,62 +202,58 @@ async function loadAuthors() {
 
 async function saveCurrencySettings() {
   try {
-    await fetch('/api/settings/default_currency', {
+    await props.app.api('/api/settings/default_currency', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: currencySettings.value.default_currency })
     })
-    await fetch('/api/settings/auto_update_rates', {
+    await props.app.api('/api/settings/auto_update_rates', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: currencySettings.value.auto_update_rates ? '1' : '0' })
     })
-    alert(props.app.t('settings.saved'))
+    await props.app.load()
+    props.app.toast(props.app.t('settings.saved'))
   } catch (error) {
-    console.error('Failed to save currency settings:', error)
+    props.app.toast(error.message || props.app.t('settings.rates_update_error'))
   }
 }
 
 async function updateCurrencyRates() {
   try {
-    const res = await fetch('/api/currency/rates')
-    const data = await res.json()
+    const data = await props.app.api('/api/currency/rates')
     if (data && data.success) {
-      alert(props.app.t('settings.rates_updated'))
+      props.app.toast(props.app.t('settings.rates_updated'))
     } else {
-      alert(props.app.t('settings.rates_update_error'))
+      props.app.toast(props.app.t('settings.rates_update_error'))
     }
   } catch (error) {
-    alert(props.app.t('settings.rates_update_error'))
+    props.app.toast(error.message || props.app.t('settings.rates_update_error'))
   }
 }
 
 async function addAuthor() {
   if (!newAuthorName.value.trim()) return
   try {
-    const res = await fetch('/api/payment-authors', {
+    const data = await props.app.api('/api/payment-authors', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: newAuthorName.value,
         sort_order: authors.value.length + 1
       })
     })
-    const data = await res.json()
     if (data && data.success) {
       authors.value.push(data.author)
       newAuthorName.value = ''
+      props.app.toast(props.app.t('settings.author_added'))
     }
   } catch (error) {
-    console.error('Failed to add author:', error)
+    props.app.toast(error.message)
   }
 }
 
 async function updateAuthor(author) {
   try {
-    await fetch(`/api/payment-authors/${author.id}`, {
+    await props.app.api(`/api/payment-authors/${author.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: author.name,
         sort_order: author.sort_order
@@ -273,17 +267,15 @@ async function updateAuthor(author) {
 async function deleteAuthor(id) {
   if (!confirm(props.app.t('settings.confirm_delete_author'))) return
   try {
-    const res = await fetch(`/api/payment-authors/${id}`, {
-      method: 'DELETE'
-    })
-    const data = await res.json()
+    const data = await props.app.api(`/api/payment-authors/${id}`, { method: 'DELETE' })
     if (data && data.success) {
       authors.value = authors.value.filter(a => a.id !== id)
+      props.app.toast(props.app.t('settings.author_deleted'))
     } else {
-      alert(data?.error || 'Ошибка удаления')
+      props.app.toast(data?.error || props.app.t('settings.author_delete_error'))
     }
   } catch (error) {
-    alert(error.message || 'Ошибка удаления')
+    props.app.toast(error.message || props.app.t('settings.author_delete_error'))
   }
 }
 </script>

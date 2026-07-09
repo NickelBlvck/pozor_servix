@@ -43,7 +43,7 @@
           <div><span>{{ t("summary.servers") }}</span><strong>{{ countByType('vps') }}</strong></div>
           <div><span>{{ t("summary.domains") }}</span><strong>{{ countByType('domain') }}</strong></div>
           <div><span>{{ t("summary.providers") }}</span><strong>{{ providers.length }}</strong></div>
-          <div class="summary-wide"><span>{{ t("summary.paid") }}</span><strong>{{ formatUsdt(totalPaid) }}</strong></div>
+          <div class="summary-wide"><span>{{ t("summary.paid") }}</span><strong>{{ formatBoth(totalsAll) }}</strong></div>
           <div class="summary-wide"><span>{{ t("summary.terms") }}</span><strong>{{ alerts.length }}</strong></div>
         </div>
         <button class="secondary-button sidebar-logout tooltip-collapsed" type="button" :data-tooltip="t('common.logout')" @click="logout"><LogOutIcon :size="18" /><span>{{ t("common.logout") }}</span></button>
@@ -83,12 +83,12 @@
           <label>{{ t("common.country") }}
             <div class="search-select">
               <button class="search-select-button" type="button" @click="countrySelectOpen = !countrySelectOpen">
-                <span>{{ editingAsset.countryCode ? countryLabel(editingAsset.countryCode) : t("common.countryEmpty") }}</span>
+                <span><CountryFlag v-if="editingAsset.countryCode" :code="editingAsset.countryCode" /> {{ editingAsset.countryCode ? countryLabel(editingAsset.countryCode) : t("common.countryEmpty") }}</span>
               </button>
               <div v-if="countrySelectOpen" class="search-select-panel">
                 <input v-model="countrySearch" type="search" :placeholder="t('common.searchCountry')" @keydown.escape="countrySelectOpen = false">
                 <div class="search-select-options">
-                  <button v-for="country in filteredCountries" :key="country.code || 'empty'" type="button" :class="{ active: editingAsset.countryCode === country.code }" @click="selectCountry(country.code)">{{ country.code ? countryLabel(country.code) : t("common.countryEmpty") }}</button>
+                  <button v-for="country in filteredCountries" :key="country.code || 'empty'" type="button" :class="{ active: editingAsset.countryCode === country.code }" @click="selectCountry(country.code)"><CountryFlag v-if="country.code" :code="country.code" /> {{ country.code ? countryLabel(country.code) : t("common.countryEmpty") }}</button>
                   <div v-if="!filteredCountries.length" class="inline-empty">{{ t("common.noCountries") }}</div>
                 </div>
               </div>
@@ -113,13 +113,28 @@
     <form id="paymentsForm" @submit.prevent>
       <div class="dialog-head"><h2>{{ t("payments.title", { name: paymentsAsset?.name || "" }) }}</h2><button class="icon-button" type="button" @click="closeModal('payments')"><XIcon :size="20" /></button></div>
       <div class="quick-payment">
-        <label>{{ t("payments.amountUsdt") }}<input v-model.number="quickPayment.amount" type="number" min="0" step="0.000001" placeholder="0.00"></label>
+        <label>{{ t("payments.amount") }}<input v-model.number="quickPayment.amount" type="number" min="0" step="0.000001" placeholder="0.00"></label>
+        <label>{{ t("payments.currency") }}
+          <select v-model="quickPayment.currency">
+            <option value="USDT">USDT</option>
+            <option value="RUB">RUB ₽</option>
+          </select>
+        </label>
+        <label>{{ t("payments.author") }}
+          <select v-model="quickPayment.authorId">
+            <option value="">{{ t("payments.noAuthor") }}</option>
+            <option v-for="author in authors" :key="author.id" :value="author.id">{{ author.name }}</option>
+          </select>
+        </label>
         <label>{{ t("common.dateTime") }}<input v-model="quickPayment.paidAt" class="datetime-input" type="datetime-local" step="60"></label>
         <button class="primary-button quick-add-button" type="button" :aria-label="t('common.addPayment')" @click="addQuickPayment"><PlusIcon :size="18" /></button>
       </div>
       <div class="payments-list">
         <article v-for="payment in paginatedAssetPayments" :key="payment.id" class="payment-item">
-          <div><strong>{{ formatUsdt(payment.amount) }}</strong><span>{{ formatDateTime(payment.paidAt) }}{{ payment.note ? ` · ${payment.note}` : '' }}</span></div>
+          <div>
+            <strong>{{ paymentDisplay(payment) }}</strong>
+            <span>{{ formatDateTime(payment.paidAt) }}<template v-if="payment.authorName"> · {{ payment.authorName }}</template><template v-if="payment.note"> · {{ payment.note }}</template></span>
+          </div>
           <button class="icon-button" type="button" @click="deletePayment(payment.id)"><Trash2Icon :size="18" /></button>
         </article>
         <div v-if="!sortedPayments.length" class="inline-empty">{{ t("payments.empty") }}</div>
@@ -201,6 +216,7 @@ import CreateView from "./views/auth/create.vue";
 import LoginView from "./views/auth/login.vue";
 import AlertsView from "./views/AlertsView.vue";
 import AssetsView from "./views/AssetsView.vue";
+import CountryFlag from "./components/CountryFlag.vue";
 import GuideView from "./views/GuideView.vue";
 import LogsView from "./views/LogsView.vue";
 import ProvidersView from "./views/ProvidersView.vue";
@@ -287,6 +303,7 @@ export default {
     CalendarClockIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    CountryFlag,
     CreateView,
     CreditCardIcon,
     DownloadIcon,
@@ -354,6 +371,8 @@ export default {
       twoFactor: { currentPassword: "", token: "", secret: "", otpauthUrl: "", qrCode: "" },
       providers: [],
       assets: [],
+      authors: [],
+      rates: { USDT: null, USD: null, EUR: null },
       alerts: [],
       logs: [],
       logSearch: "",
@@ -369,7 +388,7 @@ export default {
       assetPaymentPage: 1,
       assetPaymentPageSize: 5,
       expireAssetId: "",
-      quickPayment: { amount: "", paidAt: toLocalInput(new Date()) },
+      quickPayment: { amount: "", paidAt: toLocalInput(new Date()), currency: "USDT", authorId: "" },
       chartTooltip: null,
       toasts: []
     };
@@ -427,6 +446,14 @@ export default {
     },
     totalPaid() {
       return this.assets.reduce((sum, asset) => sum + this.totalPayments(asset.payments), 0);
+    },
+    totalsAll() {
+      return this.assets.reduce((acc, asset) => {
+        const totals = this.totalsBoth(asset.payments);
+        acc.usdt += totals.usdt;
+        acc.rub += totals.rub;
+        return acc;
+      }, { usdt: 0, rub: 0 });
     },
     paymentsAsset() {
       return this.assetById(this.paymentsAssetId);
@@ -775,6 +802,11 @@ export default {
       };
       this.providers = data.providers || [];
       this.assets = data.assets || [];
+      this.authors = data.authors || [];
+      this.rates = data.rates || { USDT: null, USD: null, EUR: null };
+      if (!this.quickPayment.currency || (this.quickPayment.currency === "USDT" && data.meta?.default_currency === "RUB")) {
+        this.quickPayment.currency = data.meta?.default_currency || "USDT";
+      }
       this.alerts = (await this.api("/api/notifications")).items || [];
       document.title = this.meta.siteTitle;
     },
@@ -872,17 +904,17 @@ export default {
     openPayments(asset) {
       this.paymentsAssetId = asset.id;
       this.assetPaymentPage = 1;
-      this.quickPayment = { amount: "", paidAt: toLocalInput(new Date()) };
+      this.quickPayment = { amount: "", paidAt: toLocalInput(new Date()), currency: this.meta?.default_currency || "USDT", authorId: "" };
       this.openModal("payments");
     },
     async addQuickPayment() {
       const asset = this.assetById(this.paymentsAssetId);
       const amount = Number(this.quickPayment.amount || 0);
       if (!asset || amount <= 0) return this.toast(this.t("payments.addAmount"));
-      await this.updateAsset({ ...asset, payments: [...(asset.payments || []), { amount, paidAt: this.quickPayment.paidAt || toLocalInput(new Date()), note: "" }] });
+      await this.updateAsset({ ...asset, payments: [...(asset.payments || []), { amount, paidAt: this.quickPayment.paidAt || toLocalInput(new Date()), note: "", currency: this.quickPayment.currency, authorId: this.quickPayment.authorId }] });
       this.toast(this.t("payments.added"));
       await this.load();
-      this.quickPayment = { amount: "", paidAt: toLocalInput(new Date()) };
+      this.quickPayment = { amount: "", paidAt: toLocalInput(new Date()), currency: this.quickPayment.currency, authorId: this.quickPayment.authorId };
     },
     async deletePayment(paymentId) {
       const asset = this.assetById(this.paymentsAssetId);
@@ -1070,10 +1102,35 @@ export default {
       return this.assets.filter((asset) => asset.type === type).length;
     },
     totalPayments(payments = []) {
-      return payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      return payments.reduce((sum, payment) => sum + Number(payment.usdt || payment.amount || 0), 0);
+    },
+    totalsBoth(payments = []) {
+      return payments.reduce((acc, payment) => {
+        acc.usdt += Number(payment.usdt ?? payment.amount ?? 0);
+        acc.rub += Number(payment.rub ?? 0);
+        return acc;
+      }, { usdt: 0, rub: 0 });
     },
     formatUsdt(value) {
       return `${new Intl.NumberFormat(this.currentLocale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 6 }).format(Number(value || 0))} USDT`;
+    },
+    formatRub(value) {
+      return `${new Intl.NumberFormat(this.currentLocale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 2 }).format(Number(value || 0))} ₽`;
+    },
+    formatBoth(totals) {
+      if (!totals) return this.formatUsdt(0);
+      const rub = Number(totals.rub || 0);
+      const usdt = Number(totals.usdt || 0);
+      return rub > 0 ? `${this.formatUsdt(usdt)} · ${this.formatRub(rub)}` : this.formatUsdt(usdt);
+    },
+    paymentDisplay(payment) {
+      const amount = Number(payment.amount || 0);
+      const currency = String(payment.currency || "USDT").toUpperCase();
+      const primary = currency === "RUB" ? this.formatRub(amount) : this.formatUsdt(amount);
+      const usdt = Number(payment.usdt || 0);
+      const rub = Number(payment.rub || 0);
+      const secondary = currency === "RUB" ? `≈ ${this.formatUsdt(usdt)}` : (rub > 0 ? `≈ ${this.formatRub(rub)}` : "");
+      return secondary ? `${primary} (${secondary})` : primary;
     },
     formatShort(value) {
       return new Intl.NumberFormat(this.currentLocale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 2 }).format(Number(value || 0));
@@ -1180,9 +1237,7 @@ function translateList(locale, key) {
 
 function countryLabelForLocale(code, locale) {
   const countryCode = String(code || "").toUpperCase();
-  const flag = countryFlag(countryCode);
-  const name = countryCode ? countryName(countryCode, locale) : translate(locale, "common.countryEmpty");
-  return countryCode ? `${flag} ${name}` : name;
+  return countryCode ? countryName(countryCode, locale) : translate(locale, "common.countryEmpty");
 }
 
 function countryFlag(code) {
