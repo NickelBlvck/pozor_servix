@@ -10,7 +10,7 @@ import https from "node:https";
 process.env.TZ ||= process.env.APP_TIMEZONE || "Europe/Moscow";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const SITE_TITLE = process.env.SITE_TITLE || 'SERVIX';
+const SITE_TITLE = process.env.SITE_TITLE || "SERVIX";
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "servix.sqlite");
 const ACCESS_LOG_FILE = path.join(DATA_DIR, "access.log");
@@ -33,10 +33,10 @@ let notificationTimer = null;
 const locales = loadLocales();
 
 const countryFlags = {
-  "": "🌐", RU: "🇺", DE: "🇪", NL: "🇳🇱", FI: "🇫🇮", FR: "🇷", GB: "🇬🇧", US: "🇺🇸", CA: "🇦", PL: "🇱", CZ: "🇿",
-  SE: "🇪", NO: "🇳🇴", CH: "🇭", AT: "🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇷", AE: "🇦", KZ: "🇰", UA: "🇺🇦",
-  BY: "🇧", LT: "🇱🇹", LV: "🇱🇻", EE: "🇪🇪", RO: "🇷🇴", BG: "🇧🇬", MD: "🇲🇩", GE: "🇬🇪", AM: "🇲", AZ: "🇦🇿",
-  SG: "🇸🇬", JP: "🇯🇵", KR: "🇰🇷", HK: "🇭🇰", IN: "🇳", AU: "🇦🇺", BR: "🇷", AR: "🇦🇷", MX: "🇽", ZA: "🇿"
+  "": "🌐", RU: "🇷🇺", DE: "🇩🇪", NL: "🇳🇱", FI: "🇮", FR: "🇫🇷", GB: "🇬", US: "🇺🇸", CA: "🇨🇦", PL: "🇵🇱", CZ: "🇿",
+  SE: "🇪", NO: "🇳🇴", CH: "🇨🇭", AT: "🇦🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇹🇷", AE: "🇪", KZ: "🇰🇿", UA: "🇺",
+  BY: "🇧🇾", LT: "🇱", LV: "🇱🇻", EE: "🇪🇪", RO: "🇷🇴", BG: "🇬", MD: "🇲", GE: "🇬🇪", AM: "🇦🇲", AZ: "🇦🇿",
+  SG: "🇸🇬", JP: "🇯🇵", KR: "🇷", HK: "🇭", IN: "🇮🇳", AU: "🇦🇺", BR: "🇧🇷", AR: "🇦🇷", MX: "🇲🇽", ZA: "🇦"
 };
 
 const mimeTypes = {
@@ -121,8 +121,6 @@ async function initDb() {
   ensureColumn("users", "totp_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_pending_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_enabled", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn("payments", "currency", "TEXT NOT NULL DEFAULT 'USDT'");
-  ensureColumn("payments", "author_id", "TEXT NOT NULL DEFAULT ''");
 
   ensureMeta("siteTitle", SITE_TITLE);
   ensureMeta("notificationLeads", "5m,2h,1d,3d,5d");
@@ -960,7 +958,6 @@ function saveCurrencyRates(rates) {
   }
 }
 
-// === ФУНКЦИИ ДЛЯ АВТОРОВ ПЛАТЕЖЕЙ ===
 function getPaymentAuthors() {
   return db.prepare("SELECT * FROM payment_authors WHERE is_active = 1 ORDER BY sort_order, name").all();
 }
