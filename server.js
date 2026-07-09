@@ -5,15 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-
-// === НОВЫЕ ИМПОРТЫ ДЛЯ ВАЛЮТ И АВТОРОВ ===
-import https from 'node:https';
+import https from "node:https";
 
 process.env.TZ ||= process.env.APP_TIMEZONE || "Europe/Moscow";
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const SITE_TITLE = process.env.SITE_TITLE || 'SERVIX';
+const SITE_TITLE = process.env.SITE_TITLE || "SERVIX";
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "servix.sqlite");
 const ACCESS_LOG_FILE = path.join(DATA_DIR, "access.log");
@@ -34,6 +31,7 @@ const authAttempts = new Map();
 let db;
 let notificationTimer = null;
 const locales = loadLocales();
+
 const countryFlags = {
   "": "🌐", RU: "🇷🇺", DE: "🇩🇪", NL: "🇳🇱", FI: "🇫🇮", FR: "🇫🇷", GB: "🇬🇧", US: "🇺🇸", CA: "🇨🇦", PL: "🇵🇱", CZ: "🇨🇿",
   SE: "🇸🇪", NO: "🇳🇴", CH: "🇨🇭", AT: "🇦🇹", ES: "🇪🇸", IT: "🇮🇹", TR: "🇹🇷", AE: "🇦🇪", KZ: "🇰🇿", UA: "🇺🇦",
@@ -83,7 +81,7 @@ function getPath(object, pathValue) {
 }
 
 function interpolate(value, params = {}) {
-  return String(value).replace(/\{(\w+)\}/g, (_, key) => params[key] ?? "");
+  return String(value).replace(/{(\w+)}/g, (_, key) => params[key] ?? "");
 }
 
 function pluralIndex(locale, count) {
@@ -105,71 +103,37 @@ async function initDb() {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
   db.exec(`
-    CREATE TABLE IF NOT EXISTS meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS providers (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      login_url TEXT NOT NULL DEFAULT '',
-      favicon_url TEXT NOT NULL DEFAULT '',
-      color TEXT NOT NULL DEFAULT '',
-      note TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS assets (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      provider_id TEXT NOT NULL DEFAULT '',
-      expires_at TEXT NOT NULL DEFAULT '',
-      ip TEXT NOT NULL DEFAULT '',
-      domain TEXT NOT NULL DEFAULT '',
-      country_code TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS payments (
-      id TEXT PRIMARY KEY,
-      asset_id TEXT NOT NULL,
-      amount REAL NOT NULL DEFAULT 0,
-      paid_at TEXT NOT NULL DEFAULT '',
-      note TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS telegram_sent (
-      event_id TEXT PRIMARY KEY,
-      sent_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      login TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      password_salt TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
+    CREATE TABLE IF NOT EXISTS meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL );
+    CREATE TABLE IF NOT EXISTS providers ( id TEXT PRIMARY KEY, name TEXT NOT NULL, login_url TEXT NOT NULL DEFAULT '', favicon_url TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
+    CREATE TABLE IF NOT EXISTS assets ( id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, provider_id TEXT NOT NULL DEFAULT '', expires_at TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '', domain TEXT NOT NULL DEFAULT '', country_code TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
+    CREATE TABLE IF NOT EXISTS payments ( id TEXT PRIMARY KEY, asset_id TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, paid_at TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE );
+    CREATE TABLE IF NOT EXISTS telegram_sent ( event_id TEXT PRIMARY KEY, sent_at TEXT NOT NULL );
+    CREATE TABLE IF NOT EXISTS users ( id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
+    CREATE TABLE IF NOT EXISTS currency_rates ( id INTEGER PRIMARY KEY AUTOINCREMENT, currency_code TEXT NOT NULL, rate REAL NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')) );
+    CREATE TABLE IF NOT EXISTS payment_authors ( id TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')) );
   `);
+
   ensureColumn("providers", "color", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("providers", "note", "TEXT NOT NULL DEFAULT ''");
-  ensureColumn("payments", "currency", "TEXT DEFAULT 'USDT'");
-  ensureColumn("payments", "author_id", "INTEGER REFERENCES payment_authors(id)");
   ensureColumn("assets", "country_code", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("assets", "sort_order", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("assets", "inactive", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("users", "totp_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_pending_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_enabled", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("payments", "currency", "TEXT NOT NULL DEFAULT 'USDT'");
+  ensureColumn("payments", "author_id", "TEXT NOT NULL DEFAULT ''");
+
   ensureMeta("siteTitle", SITE_TITLE);
   ensureMeta("notificationLeads", "5m,2h,1d,3d,5d");
   ensureMeta("locale", "ru");
   ensureMeta("timezone", normalizeTimezone(APP_TIMEZONE));
   ensureMeta("telegramNotifyUrl", TELEGRAM_NOTIFY_URL);
   ensureMeta("notifyOnStart", String(NOTIFY_ON_START));
+  ensureMeta("default_currency", "USDT");
+  ensureMeta("enable_rub", "0");
+  ensureMeta("auto_update_rates", "1");
+
   process.env.TZ = getMeta().timezone;
   if (!existed) await migrateLegacyJson();
   ensureProviderColors();
@@ -215,7 +179,10 @@ function getMeta() {
     timezone: normalizeTimezone(meta.timezone || APP_TIMEZONE),
     telegramNotifyUrl: meta.telegramNotifyUrl || "",
     notifyOnStart: String(meta.notifyOnStart ?? "true") === "true",
-    telegramConfigured: Boolean(meta.telegramNotifyUrl || TELEGRAM_NOTIFY_URL)
+    telegramConfigured: Boolean(meta.telegramNotifyUrl || TELEGRAM_NOTIFY_URL),
+    default_currency: meta.default_currency || "USDT",
+    enable_rub: meta.enable_rub === "1",
+    auto_update_rates: meta.auto_update_rates === "1"
   };
 }
 
@@ -229,10 +196,7 @@ function getPublicMeta() {
 }
 
 function setMeta(key, value) {
-  db.prepare(`
-    INSERT INTO meta (key, value) VALUES (?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-  `).run(key, String(value));
+  db.prepare(`INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, String(value));
 }
 
 function normalizeTimezone(value) {
@@ -246,16 +210,9 @@ function normalizeTimezone(value) {
 }
 
 function getData() {
-  const providers = db.prepare(`
-    SELECT id, name, login_url AS loginUrl, favicon_url AS faviconUrl, color, note, created_at AS createdAt, updated_at AS updatedAt
-    FROM providers ORDER BY created_at DESC
-  `).all();
-  const assets = db.prepare(`
-    SELECT id, type, name, provider_id AS providerId, expires_at AS expiresAt, ip, domain, country_code AS countryCode, sort_order AS sortOrder, inactive, created_at AS createdAt, updated_at AS updatedAt
-    FROM assets ORDER BY type ASC, sort_order ASC, created_at DESC
-  `).all();
-  const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId FROM payments ORDER BY paid_at DESC, created_at DESC
-  `).all();
+  const providers = db.prepare(`SELECT id, name, login_url AS loginUrl, favicon_url AS faviconUrl, color, note, created_at AS createdAt, updated_at AS updatedAt FROM providers ORDER BY created_at DESC`).all();
+  const assets = db.prepare(`SELECT id, type, name, provider_id AS providerId, expires_at AS expiresAt, ip, domain, country_code AS countryCode, sort_order AS sortOrder, inactive, created_at AS createdAt, updated_at AS updatedAt FROM assets ORDER BY type ASC, sort_order ASC, created_at DESC`).all();
+  const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId FROM payments ORDER BY paid_at DESC, created_at DESC`).all();
   for (const asset of assets) {
     asset.inactive = Boolean(asset.inactive);
     asset.payments = payments.filter((payment) => payment.assetId === asset.id).map(({ assetId, ...payment }) => payment);
@@ -370,7 +327,7 @@ function normalizePayments(input) {
       paidAt: normalizeDateTime(payment.paidAt || "", { dateOnlyOk: true }),
       note: String(payment.note || "").trim(),
       currency: String(payment.currency || "USDT").trim(),
-      authorId: payment.authorId || null,
+      authorId: String(payment.authorId || "").trim(),
       createdAt: payment.createdAt || new Date().toISOString()
     }))
     .filter((payment) => payment.amount > 0 || payment.paidAt || payment.note);
@@ -457,26 +414,13 @@ function normalizeFaviconUrl(raw, loginUrl = "") {
 }
 
 function upsertAsset(asset) {
-  db.prepare(`
-    INSERT INTO assets (id, type, name, provider_id, expires_at, ip, domain, country_code, sort_order, inactive, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      type = excluded.type,
-      name = excluded.name,
-      provider_id = excluded.provider_id,
-      expires_at = excluded.expires_at,
-      ip = excluded.ip,
-      domain = excluded.domain,
-      country_code = excluded.country_code,
-      sort_order = excluded.sort_order,
-      inactive = excluded.inactive,
-      updated_at = excluded.updated_at
-  `).run(asset.id, asset.type, asset.name, asset.providerId, asset.expiresAt, asset.ip, asset.domain, asset.countryCode, asset.sortOrder, asset.inactive ? 1 : 0, asset.createdAt, asset.updatedAt);
+  db.prepare(`INSERT INTO assets (id, type, name, provider_id, expires_at, ip, domain, country_code, sort_order, inactive, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET type = excluded.type, name = excluded.name, provider_id = excluded.provider_id, expires_at = excluded.expires_at, ip = excluded.ip, domain = excluded.domain, country_code = excluded.country_code, sort_order = excluded.sort_order, inactive = excluded.inactive, updated_at = excluded.updated_at`)
+    .run(asset.id, asset.type, asset.name, asset.providerId, asset.expiresAt, asset.ip, asset.domain, asset.countryCode, asset.sortOrder, asset.inactive ? 1 : 0, asset.createdAt, asset.updatedAt);
   db.prepare("DELETE FROM payments WHERE asset_id = ?").run(asset.id);
   const stmt = db.prepare("INSERT INTO payments (id, asset_id, amount, paid_at, note, created_at, currency, author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-for (const payment of asset.payments || []) {
-  stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt, payment.currency, payment.authorId);
-}
+  for (const payment of asset.payments || []) {
+    stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt, payment.currency, payment.authorId);
+  }
   scheduleNotifications();
   return asset;
 }
@@ -496,17 +440,8 @@ function reorderAssets(type, ids, inactive = false) {
 }
 
 function upsertProvider(provider) {
-  db.prepare(`
-    INSERT INTO providers (id, name, login_url, favicon_url, color, note, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      name = excluded.name,
-      login_url = excluded.login_url,
-      favicon_url = excluded.favicon_url,
-      color = excluded.color,
-      note = excluded.note,
-      updated_at = excluded.updated_at
-  `).run(provider.id, provider.name, provider.loginUrl, provider.faviconUrl, provider.color, provider.note, provider.createdAt, provider.updatedAt);
+  db.prepare(`INSERT INTO providers (id, name, login_url, favicon_url, color, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, login_url = excluded.login_url, favicon_url = excluded.favicon_url, color = excluded.color, note = excluded.note, updated_at = excluded.updated_at`)
+    .run(provider.id, provider.name, provider.loginUrl, provider.faviconUrl, provider.color, provider.note, provider.createdAt, provider.updatedAt);
   return provider;
 }
 
@@ -592,19 +527,13 @@ function eventId(asset, lead = null) {
 
 function getNotificationLeads(meta = getMeta()) {
   const source = String(meta.notificationLeads || "5m,2h,1d,3d,5d");
-  const parsed = source
-    .split(",")
-    .map((item) => parseDurationToken(item.trim()))
-    .filter(Boolean);
+  const parsed = source.split(",").map((item) => parseDurationToken(item.trim())).filter(Boolean);
   const unique = new Map(parsed.map((lead) => [lead.value, lead]));
   return [...unique.values()].sort((a, b) => a.minutes - b.minutes);
 }
 
 function normalizeNotificationLeads(value) {
-  const leads = String(value || "")
-    .split(",")
-    .map((item) => parseDurationToken(item.trim()))
-    .filter(Boolean);
+  const leads = String(value || "").split(",").map((item) => parseDurationToken(item.trim())).filter(Boolean);
   if (!leads.length) return "5m,2h,1d,3d,5d";
   const unique = new Map(leads.map((lead) => [lead.value, lead]));
   return [...unique.values()].sort((a, b) => a.minutes - b.minutes).map((lead) => lead.value).join(",");
@@ -912,7 +841,9 @@ function countryLabel(code, locale = "ru") {
 }
 
 function formatDateTime(value, locale = "ru") {
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: getMeta().timezone }).format(parseAppDate(value));
+  const parsed = parseAppDate(value);
+  if (!parsed) return "";
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: getMeta().timezone }).format(parsed);
 }
 
 function formatDuration(minutes, locale = "ru") {
@@ -996,6 +927,46 @@ function scheduleNotifications() {
   }), delay);
 }
 
+// === ФУНКЦИИ ДЛЯ КУРСОВ ВАЛЮТ ===
+function fetchCBRRate() {
+  return new Promise((resolve, reject) => {
+    https.get("https://www.cbr.ru/scripts/XML_daily.asp", (res) => {
+      let data = "";
+      res.on("data", (chunk) => data += chunk);
+      res.on("end", () => {
+        try {
+          const usdMatch = data.match(/<Valute ID="R01235">[\s\S]*?<Value>([\d,\s]+)<\/Value>/);
+          const eurMatch = data.match(/<Valute ID="R01239">[\s\S]*?<Value>([\d,\s]+)<\/Value>/);
+          const result = {};
+          if (usdMatch) result.USD = parseFloat(usdMatch[1].replace(",", ".").replace(/\s/g, ""));
+          if (eurMatch) result.EUR = parseFloat(eurMatch[1].replace(",", ".").replace(/\s/g, ""));
+          resolve(result);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on("error", reject);
+  });
+}
+
+function getCurrentRates() {
+  const usd = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = 'USD' ORDER BY date DESC LIMIT 1").get();
+  const eur = db.prepare("SELECT rate FROM currency_rates WHERE currency_code = 'EUR' ORDER BY date DESC LIMIT 1").get();
+  return { USD: usd?.rate || null, EUR: eur?.rate || null };
+}
+
+function saveCurrencyRates(rates) {
+  const now = new Date().toISOString();
+  for (const [currency, rate] of Object.entries(rates)) {
+    db.prepare("INSERT INTO currency_rates (currency_code, rate, date, created_at) VALUES (?, ?, ?, ?)").run(currency, rate, now, now);
+  }
+}
+
+// === ФУНКЦИИ ДЛЯ АВТОРОВ ПЛАТЕЖЕЙ ===
+function getPaymentAuthors() {
+  return db.prepare("SELECT * FROM payment_authors WHERE is_active = 1 ORDER BY sort_order, name").all();
+}
+
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/auth/status") {
     return sendJson(res, 200, { setupRequired: userCount() === 0, authenticated: isAuthed(req), meta: getPublicMeta() });
@@ -1048,6 +1019,7 @@ async function handleApi(req, res, url) {
     }));
     return res.end(JSON.stringify({ ok: true }));
   }
+
   if (!requireAuth(req, res)) return;
 
   if (req.method === "GET" && url.pathname === "/api/auth/security") {
@@ -1091,6 +1063,89 @@ async function handleApi(req, res, url) {
     db.prepare("UPDATE users SET totp_secret = '', totp_pending_secret = '', totp_enabled = 0, updated_at = ? WHERE id = ?").run(new Date().toISOString(), user.id);
     await logAction(req, "auth.2fa.disable");
     return sendJson(res, 200, { ok: true });
+  }
+
+  // === ВАЛЮТЫ ===
+  if (req.method === "GET" && url.pathname === "/api/currency/rates") {
+    try {
+      const rates = await fetchCBRRate();
+      saveCurrencyRates(rates);
+      return sendJson(res, 200, { success: true, rates });
+    } catch (error) {
+      return sendJson(res, 500, { success: false, error: error.message });
+    }
+  }
+  if (req.method === "GET" && url.pathname === "/api/currency/current") {
+    return sendJson(res, 200, { success: true, rates: getCurrentRates() });
+  }
+
+  // === АВТОРЫ ПЛАТЕЖЕЙ ===
+  if (req.method === "GET" && url.pathname === "/api/payment-authors") {
+    return sendJson(res, 200, { success: true, authors: getPaymentAuthors() });
+  }
+  if (req.method === "POST" && url.pathname === "/api/payment-authors") {
+    try {
+      const body = await readBody(req);
+      const name = String(body.name || "").trim();
+      if (!name) return sendJson(res, 400, { error: "Имя обязательно" });
+      const maxOrder = db.prepare("SELECT MAX(sort_order) as max FROM payment_authors").get()?.max || 0;
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      db.prepare("INSERT INTO payment_authors (id, name, sort_order, created_at) VALUES (?, ?, ?, ?)").run(id, name, maxOrder + 1, now);
+      const author = db.prepare("SELECT * FROM payment_authors WHERE id = ?").get(id);
+      await logAction(req, "payment_author.create", { id: author.id, name: author.name });
+      return sendJson(res, 201, { success: true, author });
+    } catch (error) {
+      return sendJson(res, 500, { success: false, error: error.message });
+    }
+  }
+
+  const authorMatch = url.pathname.match(/^\/api\/payment-authors\/([^/]+)$/);
+  if (authorMatch) {
+    const id = authorMatch[1];
+    const existing = db.prepare("SELECT * FROM payment_authors WHERE id = ?").get(id);
+    if (!existing) return sendJson(res, 404, { error: "Автор не найден" });
+
+    if (req.method === "PUT") {
+      try {
+        const body = await readBody(req);
+        const name = String(body.name || "").trim();
+        if (!name) return sendJson(res, 400, { error: "Имя обязательно" });
+        db.prepare("UPDATE payment_authors SET name = ?, sort_order = ? WHERE id = ?").run(name, Number(body.sort_order || 0), id);
+        await logAction(req, "payment_author.update", { id, name });
+        return sendJson(res, 200, { success: true });
+      } catch (error) {
+        return sendJson(res, 500, { success: false, error: error.message });
+      }
+    }
+
+    if (req.method === "DELETE") {
+      try {
+        const hasPayments = db.prepare("SELECT COUNT(*) as count FROM payments WHERE author_id = ?").get(id);
+        if (hasPayments?.count > 0) {
+          return sendJson(res, 400, { success: false, error: "Нельзя удалить автора, у которого есть платежи" });
+        }
+        db.prepare("UPDATE payment_authors SET is_active = 0 WHERE id = ?").run(id);
+        await logAction(req, "payment_author.delete", { id });
+        return sendJson(res, 200, { success: true });
+      } catch (error) {
+        return sendJson(res, 500, { success: false, error: error.message });
+      }
+    }
+  }
+
+  // === НАСТРОЙКИ ВАЛЮТ ===
+  const currencySettingMatch = url.pathname.match(/^\/api\/settings\/(default_currency|enable_rub|auto_update_rates)$/);
+  if (currencySettingMatch && req.method === "POST") {
+    try {
+      const key = currencySettingMatch[1];
+      const body = await readBody(req);
+      setMeta(key, String(body.value ?? ""));
+      await logAction(req, "settings.currency", { key, value: body.value });
+      return sendJson(res, 200, { success: true });
+    } catch (error) {
+      return sendJson(res, 500, { success: false, error: error.message });
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/assets") return sendJson(res, 200, getData());
@@ -1157,7 +1212,7 @@ async function handleApi(req, res, url) {
     }
     if (req.method === "DELETE") {
       const provider = deleteProvider(existing.id);
-      await logAction(req, "provider.delete", { id: existing.id, name: existing.name });
+      await logAction(req, "provider.delete", { id: existing.id, name: provider.name });
       return sendJson(res, 200, provider);
     }
   }
@@ -1198,81 +1253,6 @@ async function serveStatic(req, res, url) {
   }
 }
 
-// === ФУНКЦИИ ДЛЯ РАБОТЫ С КУРСАМИ ВАЛЮТ ===
-
-async function getCurrencyRate(currency) {
-    const db = await getDb();
-    const stmt = db.prepare('SELECT rate FROM currency_rates WHERE currency_code = ? ORDER BY date DESC LIMIT 1');
-    const result = stmt.get(currency);
-    return result ? result.rate : null;
-}
-
-async function updateCurrencyRate(currency, rate) {
-    const db = await getDb();
-    const stmt = db.prepare('INSERT INTO currency_rates (currency_code, rate, date) VALUES (?, ?, datetime("now"))');
-    stmt.run(currency, rate);
-}
-
-async function fetchCBRRate() {
-    return new Promise((resolve, reject) => {
-        https.get('https://www.cbr.ru/scripts/XML_daily.asp', (res) => {
-            let data = '';
-            res.on('data', (chunk) => data += chunk);
-            res.on('end', () => {
-                try {
-                    // Парсим XML ЦБ РФ
-                    const usdMatch = data.match(/<Valute ID="R01235">.*?<Value>([\d,]+)<\/Value>/s);
-                    const eurMatch = data.match(/<Valute ID="R01239">.*?<Value>([\d,]+)<\/Value>/s);
-                    
-                    const rates = {};
-                    if (usdMatch) {
-                        rates.USD = parseFloat(usdMatch[1].replace(',', '.'));
-                    }
-                    if (eurMatch) {
-                        rates.EUR = parseFloat(eurMatch[1].replace(',', '.'));
-                    }
-                    resolve(rates);
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        }).on('error', reject);
-    });
-}
-
-// === ФУНКЦИИ ДЛЯ РАБОТЫ С АВТОРАМИ ПЛАТЕЖЕЙ ===
-
-async function getPaymentAuthors() {
-    const db = await getDb();
-    const stmt = db.prepare('SELECT * FROM payment_authors WHERE is_active = 1 ORDER BY sort_order, name');
-    return stmt.all();
-}
-
-async function createPaymentAuthor(name, sortOrder = 0) {
-    const db = await getDb();
-    const stmt = db.prepare('INSERT INTO payment_authors (name, sort_order) VALUES (?, ?)');
-    const result = stmt.run(name, sortOrder);
-    return { id: result.lastInsertRowid, name, sort_order: sortOrder };
-}
-
-async function updatePaymentAuthor(id, name, sortOrder) {
-    const db = await getDb();
-    const stmt = db.prepare('UPDATE payment_authors SET name = ?, sort_order = ? WHERE id = ?');
-    stmt.run(name, sortOrder, id);
-}
-
-async function deletePaymentAuthor(id) {
-    const db = await getDb();
-    // Проверяем, есть ли платежи с этим автором
-    const checkStmt = db.prepare('SELECT COUNT(*) as count FROM payments WHERE author_id = ?');
-    const result = checkStmt.get(id);
-    if (result.count > 0) {
-        throw new Error('Нельзя удалить автора, у которого есть платежи');
-    }
-    const stmt = db.prepare('UPDATE payment_authors SET is_active = 0 WHERE id = ?');
-    stmt.run(id);
-}
-
 await initDb();
 setInterval(cleanupAuthState, 60 * 60_000).unref();
 
@@ -1285,95 +1265,6 @@ const server = createServer(async (req, res) => {
     sendJson(res, 400, { error: error.message || "Ошибка запроса" });
   }
 });
-// === API ДЛЯ КУРСОВ ВАЛЮТ ===
-
-if (url.startsWith('/api/currency/rates')) {
-    if (method === 'GET') {
-        try {
-            const rates = await fetchCBRRate();
-            // Сохраняем в БД
-            for (const [currency, rate] of Object.entries(rates)) {
-                await updateCurrencyRate(currency, rate);
-            }
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, rates }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-}
-
-if (url.startsWith('/api/currency/current')) {
-    if (method === 'GET') {
-        try {
-            const usdRate = await getCurrencyRate('USD');
-            const eurRate = await getCurrencyRate('EUR');
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                success: true, 
-                rates: { USD: usdRate, EUR: eurRate }
-            }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-}
-
-// === API ДЛЯ АВТОРОВ ПЛАТЕЖЕЙ ===
-
-if (url.startsWith('/api/payment-authors')) {
-    if (method === 'GET') {
-        try {
-            const authors = await getPaymentAuthors();
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, authors }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-    
-    if (method === 'POST') {
-        try {
-            const body = JSON.parse(body);
-            const author = await createPaymentAuthor(body.name, body.sort_order || 0);
-            res.writeHead(201, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, author }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-}
-
-if (url.match(/\/api\/payment-authors\/\d+/)) {
-    const id = parseInt(url.split('/').pop());
-    
-    if (method === 'PUT') {
-        try {
-            const body = JSON.parse(body);
-            await updatePaymentAuthor(id, body.name, body.sort_order);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-    
-    if (method === 'DELETE') {
-        try {
-            await deletePaymentAuthor(id);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-        } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: error.message }));
-        }
-    }
-}
 
 server.listen(PORT, () => {
   console.log(`${SITE_TITLE}: http://localhost:${PORT}`);
