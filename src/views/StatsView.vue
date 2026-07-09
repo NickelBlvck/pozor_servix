@@ -87,6 +87,11 @@
           <option value="none">{{ app.t("common.providersEmpty") }}</option>
           <option v-for="provider in app.paymentTableProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
         </select>
+        <select v-model="app.paymentTableAuthor" :aria-label="app.t('stats.authorFilter')">
+          <option value="all">{{ app.t("stats.allAuthors") }}</option>
+          <option value="none">{{ app.t("payments.noAuthor") }}</option>
+          <option v-for="author in app.paymentTableAuthors" :key="author.id" :value="author.id">{{ author.name }}</option>
+        </select>
         <select v-model="app.paymentTableSort" :aria-label="app.t('stats.sort')">
           <option value="date-desc">{{ app.t("stats.sortDateDesc") }}</option>
           <option value="date-asc">{{ app.t("stats.sortDateAsc") }}</option>

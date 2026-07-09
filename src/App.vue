@@ -356,6 +356,7 @@ export default {
       statsPeriod: "90d",
       paymentTableSearch: "",
       paymentTableProvider: "all",
+      paymentTableAuthor: "all",
       paymentTableSort: "date-desc",
       paymentTablePage: 1,
       paymentTablePageSize: 10,
@@ -408,7 +409,8 @@ export default {
         const matchesType = this.typeFilter === "inactive"
           ? isInactive
           : !isInactive && (this.typeFilter === "all" || asset.type === this.typeFilter);
-        const haystack = [asset.name, asset.ip, asset.domain, provider?.name].join(" ").toLowerCase();
+        const authorNames = (asset.payments || []).map((payment) => payment.authorName).filter(Boolean).join(" ");
+        const haystack = [asset.name, asset.ip, asset.domain, provider?.name, authorNames].join(" ").toLowerCase();
         return matchesType && haystack.includes(query);
       });
     },
@@ -497,7 +499,8 @@ export default {
       return [
         { label: this.t("stats.cardServers"), value: this.vpsAssets.length },
         { label: this.t("stats.cardPaidServers"), value: paidVps },
-        { label: this.t("stats.cardPaidPeriod"), value: this.formatBoth(periodTotals) },
+        { label: this.t("stats.cardPaidPeriodUsdt"), value: this.formatUsdt(periodTotals.usdt) },
+        { label: this.t("stats.cardPaidPeriodRub"), value: this.formatRub(periodTotals.rub) },
         { label: this.t("stats.cardPayments"), value: payments.length },
         { label: this.t("stats.cardAvgPayment"), value: this.formatUsdt(avgUsdt) },
         { label: this.t("stats.cardMaxPayment"), value: this.formatUsdt(maxPayment) },
@@ -576,6 +579,10 @@ export default {
       const ids = new Set(this.periodPayments.map((payment) => payment.asset?.providerId).filter(Boolean));
       return this.providers.filter((provider) => ids.has(provider.id));
     },
+    paymentTableAuthors() {
+      const ids = new Set(this.periodPayments.map((payment) => payment.authorId).filter(Boolean));
+      return this.authors.filter((author) => ids.has(author.id));
+    },
     filteredPeriodPayments() {
       const query = this.paymentTableSearch.trim().toLowerCase();
       return this.periodPayments.filter((payment) => {
@@ -584,6 +591,10 @@ export default {
         const matchesProvider = this.paymentTableProvider === "all"
           || (this.paymentTableProvider === "none" && !providerId)
           || providerId === this.paymentTableProvider;
+        const authorId = payment.authorId || "";
+        const matchesAuthor = this.paymentTableAuthor === "all"
+          || (this.paymentTableAuthor === "none" && !authorId)
+          || authorId === this.paymentTableAuthor;
         const haystack = [
           payment.asset?.name,
           provider?.name,
@@ -591,7 +602,7 @@ export default {
           payment.authorName,
           this.formatDateTime(payment.paidAt)
         ].join(" ").toLowerCase();
-        return matchesProvider && haystack.includes(query);
+        return matchesProvider && matchesAuthor && haystack.includes(query);
       });
     },
     filteredPeriodPaymentsTotal() {
@@ -660,6 +671,7 @@ export default {
     statsPeriod: "resetPaymentTablePage",
     paymentTableSearch: "resetPaymentTablePage",
     paymentTableProvider: "resetPaymentTablePage",
+    paymentTableAuthor: "resetPaymentTablePage",
     paymentTableSort: "resetPaymentTablePage",
     paymentTablePageSize: "resetPaymentTablePage",
     logSearch: "resetLogPage",

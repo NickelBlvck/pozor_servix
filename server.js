@@ -215,7 +215,7 @@ function getData() {
   for (const asset of assets) {
     asset.inactive = Boolean(asset.inactive);
     asset.payments = payments.filter((payment) => payment.assetId === asset.id)
-      .map(({ assetId, authorId, ...payment }) => enrichPayment(payment, authorNames.get(authorId) || ""));
+      .map(({ assetId, authorId, ...payment }) => enrichPayment({ ...payment, authorId }, authorNames.get(authorId) || ""));
   }
   return { meta: getMeta(), providers, assets, authors, rates: getCurrentRates() };
 }

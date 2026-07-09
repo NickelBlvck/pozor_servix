@@ -690,12 +690,15 @@ label {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0 14px;
-  font-weight: 800;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .primary-button {
   background: var(--accent);
-  color: #071110;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.35);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent), 0 8px 24px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
@@ -712,6 +715,7 @@ label {
   background: var(--panel);
   border-color: var(--line);
   color: var(--text);
+  font-weight: 500;
 }
 
 .secondary-button:hover {
@@ -726,7 +730,9 @@ label {
 .danger-button {
   background: var(--danger-soft);
   border-color: color-mix(in srgb, var(--danger) 38%, var(--line));
-  color: var(--danger);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+  font-weight: 500;
 }
 
 .icon-button {
@@ -2198,7 +2204,7 @@ label {
 
 .table-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1.25fr) minmax(150px, 0.8fr) minmax(160px, 0.9fr) 94px;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(140px, 0.75fr) minmax(130px, 0.65fr) minmax(160px, 0.85fr) 94px;
   gap: 8px;
   margin-bottom: 12px;
 }
