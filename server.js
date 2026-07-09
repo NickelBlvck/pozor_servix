@@ -30,6 +30,8 @@ const sessions = new Map();
 const authAttempts = new Map();
 let db;
 let notificationTimer = null;
+let statsReportTimer = null;
+const STATS_REPORT_CHECK_MS = 60 * 60 * 1000;
 const locales = loadLocales();
 
 function countryFlag(code) {
@@ -130,6 +132,10 @@ async function initDb() {
   ensureMeta("default_currency", "USDT");
   ensureMeta("enable_rub", "0");
   ensureMeta("auto_update_rates", "1");
+  ensureMeta("statsTelegramNotifyUrl", "");
+  ensureMeta("statsReportEnabled", "false");
+  ensureMeta("statsReportDay", "1");
+  ensureMeta("statsReportPeriod", "prev_month");
 
   process.env.TZ = getMeta().timezone;
   if (!existed) await migrateLegacyJson();
@@ -179,7 +185,12 @@ function getMeta() {
     telegramConfigured: Boolean(meta.telegramNotifyUrl || TELEGRAM_NOTIFY_URL),
     default_currency: meta.default_currency || "USDT",
     enable_rub: meta.enable_rub === "1",
-    auto_update_rates: meta.auto_update_rates === "1"
+    auto_update_rates: meta.auto_update_rates === "1",
+    statsTelegramNotifyUrl: meta.statsTelegramNotifyUrl || "",
+    statsReportEnabled: meta.statsReportEnabled === "1",
+    statsReportDay: Math.min(28, Math.max(1, Number(meta.statsReportDay || 1) || 1)),
+    statsReportPeriod: ["prev_month", "30d", "90d"].includes(meta.statsReportPeriod) ? meta.statsReportPeriod : "prev_month",
+    statsReportConfigured: Boolean(meta.statsTelegramNotifyUrl)
   };
 }
 
@@ -954,6 +965,157 @@ function scheduleNotifications() {
   }), delay);
 }
 
+function statsTelegramNotifyUrl() {
+  if (!db) return "";
+  return getMeta().statsTelegramNotifyUrl || "";
+}
+
+function statsReportEnabled() {
+  if (!db) return false;
+  return String(getMeta().statsReportEnabled ?? "false") === "true";
+}
+
+function dateKeyInTimezone(date, timezone) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(date);
+}
+
+function calendarPartsInTimezone(date, timezone) {
+  return Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric", month: "numeric", day: "numeric" })
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, Number(part.value)])
+  );
+}
+
+function getReportRange(period, timezone, locale = "ru") {
+  const now = new Date();
+  const { year, month } = calendarPartsInTimezone(now, timezone);
+  if (period === "prev_month") {
+    let prevYear = year;
+    let prevMonth = month - 1;
+    if (prevMonth < 1) {
+      prevMonth = 12;
+      prevYear -= 1;
+    }
+    const startKey = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+    const endKey = `${year}-${String(month).padStart(2, "0")}-01`;
+    const labelDate = new Date(Date.UTC(prevYear, prevMonth - 1, 1, 12));
+    const label = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { month: "long", year: "numeric", timeZone: timezone }).format(labelDate);
+    return { startKey, endKey, periodKey: `${prevYear}-${String(prevMonth).padStart(2, "0")}`, label };
+  }
+  const days = period === "90d" ? 90 : 30;
+  const start = new Date(now.getTime() - days * 86400_000);
+  return {
+    start,
+    end: now,
+    useInstantRange: true,
+    periodKey: `${period}-${dateKeyInTimezone(now, timezone)}`,
+    label: t(locale, `telegram.statsPeriod.${period}`)
+  };
+}
+
+function getVpsPaymentsForReport() {
+  const data = getData();
+  return data.assets
+    .filter((asset) => asset.type === "vps")
+    .flatMap((asset) => (asset.payments || []).map((payment) => ({ ...payment, asset })));
+}
+
+function filterPaymentsByReportRange(payments, range, timezone) {
+  if (range.useInstantRange) {
+    const startMs = range.start.getTime();
+    const endMs = range.end.getTime();
+    return payments.filter((payment) => {
+      const paidAt = parseAppDate(payment.paidAt).getTime();
+      return !Number.isNaN(paidAt) && paidAt >= startMs && paidAt <= endMs;
+    });
+  }
+  return payments.filter((payment) => {
+    const paidAt = parseAppDate(payment.paidAt);
+    if (Number.isNaN(paidAt.getTime())) return false;
+    const key = dateKeyInTimezone(paidAt, timezone);
+    return key >= range.startKey && key < range.endKey;
+  });
+}
+
+function paymentCountLabel(count, locale = "ru") {
+  return tc(locale, "payment", count);
+}
+
+function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
+  const meta = getMeta();
+  const timezone = meta.timezone;
+  const range = getReportRange(period, timezone, locale);
+  const payments = filterPaymentsByReportRange(getVpsPaymentsForReport(), range, timezone);
+  const totals = totalsBoth(payments);
+  const authorMap = new Map();
+  for (const payment of payments) {
+    const key = payment.authorId || "__none__";
+    const name = payment.authorName || t(locale, "payments.noAuthor");
+    if (!authorMap.has(key)) authorMap.set(key, { name, count: 0, rub: 0, usdt: 0 });
+    const row = authorMap.get(key);
+    row.count += 1;
+    row.rub += Number(payment.rub || 0);
+    row.usdt += Number(payment.usdt || 0);
+  }
+  const authors = [...authorMap.values()].sort((a, b) => b.rub - a.rub || b.usdt - a.usdt);
+  const lines = [
+    test ? t(locale, "telegram.statsReportTest") : t(locale, "telegram.statsReportTitle", { period: range.label }),
+    "",
+    `💰 <b>${escapeTelegram(t(locale, "telegram.statsTotal"))}</b>`,
+    `   ${escapeTelegram(formatRub(totals.rub, locale))}`,
+    `   ${escapeTelegram(formatUsdt(totals.usdt, locale))}`,
+    "",
+    `🧾 <b>${escapeTelegram(t(locale, "telegram.statsPayments"))}</b> ${payments.length}`,
+    "",
+    `👤 <b>${escapeTelegram(t(locale, "telegram.statsByAuthors"))}</b>`
+  ];
+  if (!authors.length) {
+    lines.push(`   ${escapeTelegram(t(locale, "payments.empty"))}`);
+  } else {
+    for (const author of authors) {
+      lines.push(`   • ${escapeTelegram(author.name)} — ${escapeTelegram(paymentCountLabel(author.count, locale))} · ${escapeTelegram(formatRub(author.rub, locale))} · ${escapeTelegram(formatUsdt(author.usdt, locale))}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+async function maybeSendStatsReport({ force = false, period, test = false } = {}) {
+  if (!statsTelegramNotifyUrl()) return { skipped: true, reason: "Stats Telegram URL не задан" };
+  if (!force && !test && !statsReportEnabled()) return { skipped: true, reason: "Отчёты отключены" };
+  const meta = getMeta();
+  const timezone = meta.timezone;
+  const reportPeriod = period || meta.statsReportPeriod || "prev_month";
+  const range = getReportRange(reportPeriod, timezone, meta.locale || "ru");
+  const sentId = `stats-report:${reportPeriod}:${range.periodKey}`;
+  if (!force && !test && wasSent(sentId)) return { skipped: true, reason: "Уже отправлено" };
+  if (!force && !test) {
+    const { day } = calendarPartsInTimezone(new Date(), timezone);
+    const reportDay = Math.min(28, Math.max(1, Number(meta.statsReportDay || 1)));
+    if (day !== reportDay) return { skipped: true, reason: "Не день отчёта" };
+  }
+  const locale = meta.locale || "ru";
+  const text = buildStatsReportText(reportPeriod, locale, { test });
+  const result = await sendTelegramMessage(text, { notifyUrl: statsTelegramNotifyUrl() });
+  if (!result?.skipped && !test) markSent(sentId);
+  return result;
+}
+
+function scheduleStatsReport() {
+  if (statsReportTimer) clearTimeout(statsReportTimer);
+  if (!statsReportEnabled() || !statsTelegramNotifyUrl()) return;
+  statsReportTimer = setTimeout(async () => {
+    try {
+      await maybeSendStatsReport();
+    } catch (error) {
+      console.warn(`Stats report failed: ${error.message}`);
+    }
+    scheduleStatsReport();
+  }, STATS_REPORT_CHECK_MS);
+  maybeSendStatsReport().catch((error) => console.warn(`Stats report check failed: ${error.message}`));
+}
+
 // === ФУНКЦИИ ДЛЯ КУРСОВ ВАЛЮТ ===
 function fetchCBRRate() {
   return new Promise((resolve, reject) => {
@@ -1245,6 +1407,19 @@ async function handleApi(req, res, url) {
     const result = await sendTelegramMessage(t(locale, "alerts.testMessage"), { notifyUrl });
     return sendJson(res, 200, { ok: true, skipped: Boolean(result?.skipped), reason: result?.reason || "" });
   }
+  if (req.method === "POST" && url.pathname === "/api/telegram/test-stats") {
+    const body = await readBody(req);
+    const meta = getMeta();
+    const period = ["prev_month", "30d", "90d"].includes(body.statsReportPeriod) ? body.statsReportPeriod : meta.statsReportPeriod;
+    const notifyUrl = Object.hasOwn(body, "statsTelegramNotifyUrl") ? String(body.statsTelegramNotifyUrl || "").trim() : statsTelegramNotifyUrl();
+    try {
+      const text = buildStatsReportText(period, meta.locale || "ru", { test: true });
+      const result = await sendTelegramMessage(text, { notifyUrl });
+      return sendJson(res, 200, { ok: true, skipped: Boolean(result?.skipped), reason: result?.reason || "" });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
   if (req.method === "PUT" && url.pathname === "/api/settings") {
     const body = await readBody(req);
     setMeta("siteTitle", String(body.siteTitle || SITE_TITLE).trim());
@@ -1253,9 +1428,14 @@ async function handleApi(req, res, url) {
     setMeta("timezone", normalizeTimezone(body.timezone));
     setMeta("telegramNotifyUrl", String(body.telegramNotifyUrl || "").trim());
     setMeta("notifyOnStart", String(Boolean(body.notifyOnStart)));
+    setMeta("statsTelegramNotifyUrl", String(body.statsTelegramNotifyUrl || "").trim());
+    setMeta("statsReportEnabled", String(Boolean(body.statsReportEnabled)));
+    setMeta("statsReportDay", String(Math.min(28, Math.max(1, Number(body.statsReportDay || 1)))));
+    setMeta("statsReportPeriod", ["prev_month", "30d", "90d"].includes(body.statsReportPeriod) ? body.statsReportPeriod : "prev_month");
     process.env.TZ = getMeta().timezone;
     scheduleNotifications();
-    await logAction(req, "settings.update", { locale: body.locale, timezone: body.timezone, telegramConfigured: Boolean(body.telegramNotifyUrl) });
+    scheduleStatsReport();
+    await logAction(req, "settings.update", { locale: body.locale, timezone: body.timezone, telegramConfigured: Boolean(body.telegramNotifyUrl), statsReportConfigured: Boolean(body.statsTelegramNotifyUrl) });
     return sendJson(res, 200, getMeta());
   }
   if (req.method === "POST" && url.pathname === "/api/assets") {
@@ -1361,9 +1541,11 @@ server.listen(PORT, () => {
   console.log(`${SITE_TITLE}: http://localhost:${PORT}`);
   console.log("Login/password authorization is enabled");
   if (telegramNotifyUrl()) console.log("Realtime Telegram notifications are configured");
+  if (statsTelegramNotifyUrl() && statsReportEnabled()) console.log("Scheduled Telegram stats reports are configured");
   if (telegramNotifyUrl() && notifyOnStart()) {
     processDueNotifications().catch((error) => console.warn(error.message));
   } else {
     scheduleNotifications();
   }
+  scheduleStatsReport();
 });
