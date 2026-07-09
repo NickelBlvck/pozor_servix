@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 // === НОВЫЕ ИМПОРТЫ ДЛЯ ВАЛЮТ И АВТОРОВ ===
-const https = require('https');
+import https from 'node:https';
 
 process.env.TZ ||= process.env.APP_TIMEZONE || "Europe/Moscow";
 
