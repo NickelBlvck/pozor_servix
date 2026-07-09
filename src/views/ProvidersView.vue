@@ -8,8 +8,7 @@
       <article v-for="provider in app.providers" :key="provider.id" class="provider-card" :style="app.providerStyle(provider)">
         <header>
           <div class="card-title-row">
-            <img v-if="provider.faviconUrl" class="favicon" :src="provider.faviconUrl" alt="" referrerpolicy="no-referrer">
-            <span v-else class="favicon-placeholder provider-color-mark">{{ provider.name.slice(0, 1).toUpperCase() }}</span>
+            <ProviderFavicon :url="provider.faviconUrl" :initial="provider.name.slice(0, 1).toUpperCase()" placeholder-class="provider-color-mark" />
             <div>
               <h2>{{ provider.name }}</h2>
               <span>{{ provider.loginUrl || app.t("providers.loginUrlEmpty") }}</span>
@@ -34,8 +33,10 @@
 <script>
 import { ExternalLink as ExternalLinkIcon, Pencil as PencilIcon, Plus as PlusIcon } from "@lucide/vue";
 
+import ProviderFavicon from "../components/ProviderFavicon.vue";
+
 export default {
-  components: { ExternalLinkIcon, PencilIcon, PlusIcon },
+  components: { ExternalLinkIcon, PencilIcon, PlusIcon, ProviderFavicon },
   props: {
     app: { type: Object, required: true }
   }

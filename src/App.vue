@@ -484,22 +484,22 @@ export default {
     },
     statCards() {
       const payments = this.periodPayments;
-      const periodTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const periodTotals = sumPaymentsBoth(payments);
       const overdue = this.vpsAssets.filter((asset) => this.minutesUntil(asset.expiresAt) < 0).length;
       const maxLeadMinutes = maxNotificationLeadMinutes(this.meta.notificationLeads);
       const soon = this.vpsAssets.filter((asset) => {
         const minutes = this.minutesUntil(asset.expiresAt);
         return minutes >= 0 && minutes <= maxLeadMinutes;
       }).length;
-      const avg = payments.length ? periodTotal / payments.length : 0;
+      const avgUsdt = payments.length ? periodTotals.usdt / payments.length : 0;
       const paidVps = new Set(payments.map((payment) => payment.asset?.id)).size;
-      const maxPayment = payments.reduce((max, payment) => Math.max(max, Number(payment.amount || 0)), 0);
+      const maxPayment = payments.reduce((max, payment) => Math.max(max, Number(payment.usdt || 0)), 0);
       return [
         { label: this.t("stats.cardServers"), value: this.vpsAssets.length },
         { label: this.t("stats.cardPaidServers"), value: paidVps },
-        { label: this.t("stats.cardPaidPeriod"), value: this.formatUsdt(periodTotal) },
+        { label: this.t("stats.cardPaidPeriod"), value: this.formatBoth(periodTotals) },
         { label: this.t("stats.cardPayments"), value: payments.length },
-        { label: this.t("stats.cardAvgPayment"), value: this.formatUsdt(avg) },
+        { label: this.t("stats.cardAvgPayment"), value: this.formatUsdt(avgUsdt) },
         { label: this.t("stats.cardMaxPayment"), value: this.formatUsdt(maxPayment) },
         { label: this.t("stats.cardSoon"), value: soon },
         { label: this.t("stats.cardOverdue"), value: overdue }
@@ -566,7 +566,7 @@ export default {
       const rows = this.providers.map((provider) => {
         const value = this.periodPayments
           .filter((payment) => payment.asset?.providerId === provider.id)
-          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+          .reduce((sum, payment) => sum + Number(payment.usdt || 0), 0);
         return { id: provider.id, name: provider.name, color: provider.color || providerFallbackColor(provider.id), value };
       }).filter((row) => row.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
       const max = Math.max(1, ...rows.map((row) => row.value));
@@ -588,21 +588,22 @@ export default {
           payment.asset?.name,
           provider?.name,
           payment.amount,
+          payment.authorName,
           this.formatDateTime(payment.paidAt)
         ].join(" ").toLowerCase();
         return matchesProvider && haystack.includes(query);
       });
     },
     filteredPeriodPaymentsTotal() {
-      return this.filteredPeriodPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      return this.formatBoth(sumPaymentsBoth(this.filteredPeriodPayments));
     },
     periodPaymentsSorted() {
       const rows = [...this.filteredPeriodPayments];
       const sorters = {
         "date-desc": (a, b) => String(b.paidAt).localeCompare(String(a.paidAt)),
         "date-asc": (a, b) => String(a.paidAt).localeCompare(String(b.paidAt)),
-        "amount-desc": (a, b) => Number(b.amount || 0) - Number(a.amount || 0),
-        "amount-asc": (a, b) => Number(a.amount || 0) - Number(b.amount || 0),
+        "amount-desc": (a, b) => Number(b.usdt || 0) - Number(a.usdt || 0),
+        "amount-asc": (a, b) => Number(a.usdt || 0) - Number(b.usdt || 0),
         "server-asc": (a, b) => String(a.asset?.name || "").localeCompare(String(b.asset?.name || ""), "ru"),
         "provider-asc": (a, b) => String(this.providerOf(a.asset)?.name || "").localeCompare(String(this.providerOf(b.asset)?.name || ""), "ru")
       };
@@ -1017,6 +1018,10 @@ export default {
     logDetails(item) {
       return item.details ? JSON.stringify(item.details) : "";
     },
+    lastPaymentAuthor(asset) {
+      const payments = [...(asset.payments || [])].sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt)));
+      return payments.find((payment) => payment.authorName)?.authorName || "";
+    },
     providerOf(asset) {
       return this.providers.find((provider) => provider.id === asset.providerId);
     },
@@ -1067,7 +1072,11 @@ export default {
         date: this.formatDateTime(payment.paidAt),
         server: payment.asset?.name || "",
         provider: this.providerOf(payment.asset)?.name || this.t("common.providerEmpty"),
-        amount: Number(payment.amount || 0)
+        author: payment.authorName || "",
+        currency: String(payment.currency || "USDT").toUpperCase(),
+        amount: Number(payment.amount || 0),
+        usdt: Number(payment.usdt || 0),
+        rub: Number(payment.rub || 0)
       }));
     },
     exportPaymentsCsv() {
@@ -1075,8 +1084,8 @@ export default {
       if (!rows.length) return;
       const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
       const csv = [
-        [this.t("export.date"), this.t("export.server"), this.t("export.provider"), this.t("export.amount")].map(escape).join(","),
-        ...rows.map((row) => [row.date, row.server, row.provider, row.amount].map(escape).join(","))
+        [this.t("export.date"), this.t("export.server"), this.t("export.provider"), this.t("payments.author"), this.t("payments.currency"), this.t("export.amount"), "USDT", "RUB"].map(escape).join(","),
+        ...rows.map((row) => [row.date, row.server, row.provider, row.author, row.currency, row.amount, row.usdt, row.rub].map(escape).join(","))
       ].join("\n");
       const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
       const link = document.createElement("a");
@@ -1089,8 +1098,13 @@ export default {
       const rows = this.paymentExportRows();
       if (!rows.length) return;
       const doc = new jsPDF({ orientation: "landscape" });
-      const headers = [this.t("export.date"), this.t("export.server"), this.t("export.provider"), this.t("export.amount")];
-      const body = rows.map((row) => [row.date, row.server, row.provider, row.amount.toFixed(6).replace(/\.?0+$/, "")]);
+      const headers = [this.t("export.date"), this.t("export.server"), this.t("export.provider"), this.t("payments.author"), this.t("payments.currency"), this.t("export.amount"), "USDT", "RUB"];
+      const body = rows.map((row) => [
+        row.date, row.server, row.provider, row.author, row.currency,
+        row.amount.toFixed(2).replace(/\.?0+$/, ""),
+        row.usdt.toFixed(6).replace(/\.?0+$/, ""),
+        row.rub.toFixed(2).replace(/\.?0+$/, "")
+      ]);
       const pages = buildPdfCanvases(this.t("export.title"), headers, body);
       pages.forEach((canvas, index) => {
         if (index > 0) doc.addPage("a4", "landscape");
@@ -1105,11 +1119,7 @@ export default {
       return payments.reduce((sum, payment) => sum + Number(payment.usdt || payment.amount || 0), 0);
     },
     totalsBoth(payments = []) {
-      return payments.reduce((acc, payment) => {
-        acc.usdt += Number(payment.usdt ?? payment.amount ?? 0);
-        acc.rub += Number(payment.rub ?? 0);
-        return acc;
-      }, { usdt: 0, rub: 0 });
+      return sumPaymentsBoth(payments);
     },
     formatUsdt(value) {
       return `${new Intl.NumberFormat(this.currentLocale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 6 }).format(Number(value || 0))} USDT`;
@@ -1437,6 +1447,14 @@ function parseDurationToken(value) {
   return amount > 0 ? { amount, unit: match[2], minutes: amount * multiplier } : null;
 }
 
+function sumPaymentsBoth(payments = []) {
+  return payments.reduce((acc, payment) => {
+    acc.usdt += Number(payment.usdt || 0);
+    acc.rub += Number(payment.rub || 0);
+    return acc;
+  }, { usdt: 0, rub: 0 });
+}
+
 function buildPaymentTimeline(payments, period, locale = "ru", timezone = "Europe/Moscow") {
   const now = new Date();
   const validPayments = payments
@@ -1459,7 +1477,7 @@ function buildPaymentTimeline(payments, period, locale = "ru", timezone = "Europ
   for (const payment of validPayments) {
     const index = Math.floor((payment.date.getTime() - start.getTime()) / stepMs);
     if (rows[index]) {
-      rows[index].amount += Number(payment.amount || 0);
+      rows[index].amount += Number(payment.usdt || 0);
       rows[index].count += 1;
     }
   }

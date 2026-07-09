@@ -430,6 +430,7 @@
   },
   "payments": {
     "title": "Payments: {name}",
+    "amount": "Amount",
     "amountUsdt": "Amount USDT",
     "empty": "No payments yet",
     "addAmount": "Enter payment amount",

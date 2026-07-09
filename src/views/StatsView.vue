@@ -103,18 +103,19 @@
         </select>
       </div>
       <div class="payments-table" v-if="app.paginatedPeriodPayments.length">
-        <div class="payments-table-head"><span>{{ app.t("common.date") }}</span><span>{{ app.t("type.vps") }}</span><span>{{ app.t("common.provider") }}</span><span>{{ app.t("common.sum") }}</span></div>
+        <div class="payments-table-head"><span>{{ app.t("common.date") }}</span><span>{{ app.t("type.vps") }}</span><span>{{ app.t("common.provider") }}</span><span>{{ app.t("payments.author") }}</span><span>{{ app.t("common.sum") }}</span></div>
         <div v-for="payment in app.paginatedPeriodPayments" :key="payment.id" class="payments-table-row">
           <span>{{ app.formatDateTime(payment.paidAt) }}</span>
           <span>{{ payment.asset.name }}</span>
           <span>{{ app.providerOf(payment.asset)?.name || app.t("common.providerEmpty") }}</span>
-          <strong>{{ app.formatUsdt(payment.amount) }}</strong>
+          <span>{{ payment.authorName || "—" }}</span>
+          <strong>{{ app.paymentDisplay(payment) }}</strong>
         </div>
       </div>
       <div v-else-if="app.periodPayments.length" class="inline-empty">{{ app.t("stats.noFilteredPayments") }}</div>
       <div v-else class="inline-empty">{{ app.t("stats.noPeriodPayments") }}</div>
       <div class="table-footer" v-if="app.filteredPeriodPayments.length">
-        <span>{{ app.t("common.total") }}: {{ app.formatUsdt(app.filteredPeriodPaymentsTotal) }}</span>
+        <span>{{ app.t("common.total") }}: {{ app.filteredPeriodPaymentsTotal }}</span>
         <div class="pagination">
           <button class="secondary-button icon-only" type="button" @click="app.setPaymentPage(app.paymentTablePage - 1)" :disabled="app.paymentTablePage <= 1" :aria-label="app.t('stats.prevPage')"><ChevronLeftIcon :size="16" /></button>
           <strong>{{ app.paymentTablePage }} / {{ app.paymentTablePages }}</strong>

@@ -2219,10 +2219,10 @@ label {
 .payments-table-head,
 .payments-table-row {
   display: grid;
-  grid-template-columns: 150px minmax(160px, 1fr) minmax(140px, 0.8fr) 130px;
+  grid-template-columns: 150px minmax(140px, 1fr) minmax(120px, 0.7fr) minmax(100px, 0.5fr) minmax(150px, 0.9fr);
   gap: 12px;
   align-items: center;
-  min-width: 700px;
+  min-width: 820px;
 }
 
 .payments-table-head {

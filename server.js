@@ -399,15 +399,23 @@ function hslToHex(hue, saturation, lightness) {
 }
 
 function normalizeFaviconUrl(raw, loginUrl = "") {
-  const value = normalizeExternalUrl(raw) || normalizeExternalUrl(loginUrl);
+  const explicit = normalizeExternalUrl(raw);
+  if (explicit) {
+    try {
+      const url = new URL(explicit);
+      const ext = path.extname(url.pathname).toLowerCase();
+      if ([".ico", ".png", ".jpg", ".jpeg", ".svg", ".webp"].includes(ext)) {
+        return url.toString();
+      }
+    } catch {
+      return "";
+    }
+  }
+  const value = normalizeExternalUrl(loginUrl) || explicit;
   if (!value) return "";
   try {
-    const url = new URL(value);
-    const ext = path.extname(url.pathname).toLowerCase();
-    if (!ext || url.pathname === "/" || ![".ico", ".png", ".jpg", ".jpeg", ".svg", ".webp"].includes(ext)) {
-      return `${url.origin}/favicon.ico`;
-    }
-    return url.toString();
+    const hostname = new URL(value).hostname;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
   } catch {
     return "";
   }
@@ -1032,10 +1040,10 @@ function saveCurrencyRates(rates, date) {
 function enrichPayment(payment, authorName = "") {
   const amount = Number(payment.amount || 0);
   const currency = String(payment.currency || "USDT").toUpperCase();
-  const rate = getRateForDate(currency, payment.paidAt);
-  const rub = currency === "RUB" ? amount : amount * rate;
-  const usdt = currency === "USDT" ? amount : amount / rate;
-  return { ...payment, rate, rub, usdt, authorName };
+  const usdRubRate = getRateForDate("USDT", payment.paidAt);
+  const rub = currency === "RUB" ? amount : amount * usdRubRate;
+  const usdt = currency === "USDT" ? amount : amount / usdRubRate;
+  return { ...payment, rate: usdRubRate, rub, usdt, authorName };
 }
 
 function getPaymentAuthors() {

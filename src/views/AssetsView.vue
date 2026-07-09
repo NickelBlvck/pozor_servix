@@ -34,8 +34,7 @@
             >
               <header>
                 <div class="card-title-row">
-                  <img v-if="app.providerOf(asset)?.faviconUrl" class="favicon" :src="app.providerOf(asset).faviconUrl" alt="" referrerpolicy="no-referrer">
-                  <span v-else class="favicon-placeholder">{{ app.providerInitial(asset) }}</span>
+                  <ProviderFavicon :url="app.providerOf(asset)?.faviconUrl" :initial="app.providerInitial(asset)" />
                   <div>
                     <h2>{{ asset.name }}</h2>
                     <span v-if="asset.type === 'vps'"><CountryFlag v-if="asset.countryCode" :code="asset.countryCode" /> {{ app.assetSubtitle(asset) }}</span>
@@ -55,7 +54,7 @@
               </div>
               <div class="payment-strip">
                 <strong>{{ app.formatBoth(app.totalsBoth(asset.payments)) }}</strong>
-                <span>{{ app.tc("payment", asset.payments?.length || 0) }}</span>
+                <span>{{ app.tc("payment", asset.payments?.length || 0) }}<template v-if="app.lastPaymentAuthor(asset)"> · {{ app.lastPaymentAuthor(asset) }}</template></span>
               </div>
               <footer>
                 <a v-if="app.providerOf(asset)?.loginUrl" class="secondary-link icon-only tooltip" :href="app.providerOf(asset).loginUrl" target="_blank" rel="noreferrer" :aria-label="app.t('common.cabinet')" :data-tooltip="app.t('common.cabinet')"><ExternalLinkIcon :size="16" /></a>
@@ -87,8 +86,10 @@
 import { ArchiveX as ArchiveXIcon, CalendarClock as CalendarClockIcon, CreditCard as CreditCardIcon, ExternalLink as ExternalLinkIcon, Pencil as PencilIcon, Plus as PlusIcon, RotateCcw as RotateCcwIcon } from "@lucide/vue";
 import CountryFlag from "../components/CountryFlag.vue";
 
+import ProviderFavicon from "../components/ProviderFavicon.vue";
+
 export default {
-  components: { ArchiveXIcon, CalendarClockIcon, CountryFlag, CreditCardIcon, ExternalLinkIcon, PencilIcon, PlusIcon, RotateCcwIcon },
+  components: { ArchiveXIcon, CalendarClockIcon, CountryFlag, CreditCardIcon, ExternalLinkIcon, PencilIcon, PlusIcon, ProviderFavicon, RotateCcwIcon },
   props: {
     app: { type: Object, required: true }
   }

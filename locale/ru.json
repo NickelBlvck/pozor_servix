@@ -318,7 +318,7 @@
     "totpDisabledToast": "2FA отключена"
   },
   "payments": {
-    "title": "Платежи: {name}", "amountUsdt": "Сумма USDT",
+    "title": "Платежи: {name}", "amount": "Сумма", "amountUsdt": "Сумма USDT",
     "empty": "Платежей пока нет", "addAmount": "Укажите сумму платежа",
     "added": "Платеж добавлен", "deleted": "Платеж удален",
     "currency": "Валюта", "author": "Автор платежа", "amountRub": "Сумма RUB",

@@ -242,6 +242,12 @@ async function addAuthor() {
     })
     if (data && data.success) {
       authors.value.push(data.author)
+      props.app.authors = [...(props.app.authors || []), {
+        id: data.author.id,
+        name: data.author.name,
+        sortOrder: data.author.sort_order,
+        isActive: data.author.is_active !== 0
+      }]
       newAuthorName.value = ''
       props.app.toast(props.app.t('settings.author_added'))
     }
@@ -270,6 +276,7 @@ async function deleteAuthor(id) {
     const data = await props.app.api(`/api/payment-authors/${id}`, { method: 'DELETE' })
     if (data && data.success) {
       authors.value = authors.value.filter(a => a.id !== id)
+      props.app.authors = (props.app.authors || []).filter(a => a.id !== id)
       props.app.toast(props.app.t('settings.author_deleted'))
     } else {
       props.app.toast(data?.error || props.app.t('settings.author_delete_error'))

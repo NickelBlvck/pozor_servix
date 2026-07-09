@@ -1,7 +1,7 @@
 <template>
   <span class="country-flag" :title="code ? code : ''">
     <img v-if="flagUrl" :src="flagUrl" :alt="code" class="flag-img" loading="lazy" decoding="async" referrerpolicy="no-referrer" @error="onError">
-    <span v-else class="flag-fallback">🌐</span>
+    <span v-else class="flag-fallback">{{ emojiFlag }}</span>
   </span>
 </template>
 
@@ -21,6 +21,10 @@ export default {
       if (this.failed) return "";
       if (!/^[A-Z]{2}$/.test(this.normalized)) return "";
       return `https://flagcdn.com/${this.normalized.toLowerCase()}.svg`;
+    },
+    emojiFlag() {
+      if (!/^[A-Z]{2}$/.test(this.normalized)) return "🌐";
+      return [...this.normalized].map((char) => String.fromCodePoint(127397 + char.charCodeAt(0))).join("");
     }
   },
   watch: {
