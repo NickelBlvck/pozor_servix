@@ -13,29 +13,29 @@
         <div class="settings-card-head">
           <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
           <div>
-            <h2>{{ t('settings.currency') }}</h2>
+            <h2>{{ app.t('settings.currency') }}</h2>
             <span>Настройки мультивалютности</span>
           </div>
         </div>
         <div class="settings-form-grid">
           <label>
-            {{ t('settings.default_currency') }}
-            <select v-model="settings.default_currency" @change="saveSetting('default_currency', settings.default_currency)">
+            {{ app.t('settings.default_currency') }}
+            <select v-model="currencySettings.default_currency" @change="saveCurrencySetting('default_currency', currencySettings.default_currency)">
               <option value="USDT">USDT</option>
               <option value="RUB">RUB</option>
             </select>
           </label>
           <label class="check-row">
-            <input type="checkbox" v-model="settings.enable_rub" @change="saveSetting('enable_rub', settings.enable_rub ? '1' : '0')" />
-            {{ t('settings.enable_rub') }}
+            <input type="checkbox" v-model="currencySettings.enable_rub" @change="saveCurrencySetting('enable_rub', currencySettings.enable_rub ? '1' : '0')" />
+            {{ app.t('settings.enable_rub') }}
           </label>
           <label class="check-row">
-            <input type="checkbox" v-model="settings.auto_update_rates" @change="saveSetting('auto_update_rates', settings.auto_update_rates ? '1' : '0')" />
-            {{ t('settings.auto_update_rates') }}
+            <input type="checkbox" v-model="currencySettings.auto_update_rates" @change="saveCurrencySetting('auto_update_rates', currencySettings.auto_update_rates ? '1' : '0')" />
+            {{ app.t('settings.auto_update_rates') }}
           </label>
         </div>
         <button @click="updateCurrencyRates" class="primary-button" type="button">
-          {{ t('settings.update_rates_now') }}
+          {{ app.t('settings.update_rates_now') }}
         </button>
       </div>
 
@@ -44,7 +44,7 @@
         <div class="settings-card-head">
           <div class="settings-card-icon"><SettingsIcon :size="18" /></div>
           <div>
-            <h2>{{ t('settings.payment_authors') }}</h2>
+            <h2>{{ app.t('settings.payment_authors') }}</h2>
             <span>Управление авторами платежей</span>
           </div>
         </div>
@@ -58,22 +58,22 @@
               placeholder="Имя автора"
             />
             <button @click="deleteAuthor(author.id)" class="danger-button" type="button">
-              {{ t('common.delete') }}
+              {{ app.t('common.delete') }}
             </button>
           </div>
           <div v-if="authors.length === 0" class="hint">
-            {{ t('settings.payment_authors') }} пока нет
+            {{ app.t('settings.payment_authors') }} пока нет
           </div>
         </div>
         <div class="add-author">
           <input 
             v-model="newAuthorName" 
-            :placeholder="t('settings.new_author')"
+            :placeholder="app.t('settings.new_author')"
             class="input"
             @keyup.enter="addAuthor"
           />
           <button @click="addAuthor" class="primary-button" type="button">
-            {{ t('common.add') }}
+            {{ app.t('common.add') }}
           </button>
         </div>
       </div>
@@ -158,11 +158,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import api from '../api'
 
-const { t } = useI18n()
-const settings = ref({
+const props = defineProps({
+  app: { type: Object, required: true }
+})
+
+const currencySettings = ref({
   default_currency: 'USDT',
   enable_rub: false,
   auto_update_rates: true
@@ -171,66 +172,78 @@ const authors = ref([])
 const newAuthorName = ref('')
 
 onMounted(async () => {
-  await loadSettings()
+  await loadCurrencySettings()
   await loadAuthors()
 })
 
-async function loadSettings() {
+async function loadCurrencySettings() {
   try {
-    const res = await api.get('/api/settings')
-    if (res && res.settings) {
-      settings.value = {
-        default_currency: res.settings.find(s => s.key === 'default_currency')?.value || 'USDT',
-        enable_rub: res.settings.find(s => s.key === 'enable_rub')?.value === '1',
-        auto_update_rates: res.settings.find(s => s.key === 'auto_update_rates')?.value === '1'
+    const res = await fetch('/api/settings')
+    const data = await res.json()
+    if (data && data.meta) {
+      currencySettings.value = {
+        default_currency: data.meta.default_currency || 'USDT',
+        enable_rub: data.meta.enable_rub === '1',
+        auto_update_rates: data.meta.auto_update_rates === '1'
       }
     }
   } catch (error) {
-    console.error('Failed to load settings:', error)
+    console.error('Failed to load currency settings:', error)
   }
 }
 
 async function loadAuthors() {
   try {
-    const res = await api.get('/api/payment-authors')
-    if (res && res.success) {
-      authors.value = res.authors || []
+    const res = await fetch('/api/payment-authors')
+    const data = await res.json()
+    if (data && data.success) {
+      authors.value = data.authors || []
     }
   } catch (error) {
     console.error('Failed to load authors:', error)
   }
 }
 
-async function saveSetting(key, value) {
+async function saveCurrencySetting(key, value) {
   try {
-    await api.post(`/api/settings/${key}`, { value })
+    await fetch(`/api/settings/${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    })
   } catch (error) {
-    console.error('Failed to save setting:', error)
+    console.error('Failed to save currency setting:', error)
   }
 }
 
 async function updateCurrencyRates() {
   try {
-    const res = await api.get('/api/currency/rates')
-    if (res && res.success) {
-      alert(t('settings.rates_updated'))
+    const res = await fetch('/api/currency/rates')
+    const data = await res.json()
+    if (data && data.success) {
+      alert(props.app.t('settings.rates_updated'))
     } else {
-      alert(t('settings.rates_update_error'))
+      alert(props.app.t('settings.rates_update_error'))
     }
   } catch (error) {
-    alert(t('settings.rates_update_error'))
+    alert(props.app.t('settings.rates_update_error'))
   }
 }
 
 async function addAuthor() {
   if (!newAuthorName.value.trim()) return
   try {
-    const res = await api.post('/api/payment-authors', {
-      name: newAuthorName.value,
-      sort_order: authors.value.length + 1
+    const res = await fetch('/api/payment-authors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newAuthorName.value,
+        sort_order: authors.value.length + 1
+      })
     })
-    if (res && res.success) {
-      authors.value.push(res.author)
+    const data = await res.json()
+    if (data && data.success) {
+      authors.value.push(data.author)
       newAuthorName.value = ''
     }
   } catch (error) {
@@ -240,9 +253,13 @@ async function addAuthor() {
 
 async function updateAuthor(author) {
   try {
-    await api.put(`/api/payment-authors/${author.id}`, {
-      name: author.name,
-      sort_order: author.sort_order
+    await fetch(`/api/payment-authors/${author.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: author.name,
+        sort_order: author.sort_order
+      })
     })
   } catch (error) {
     console.error('Failed to update author:', error)
@@ -250,13 +267,16 @@ async function updateAuthor(author) {
 }
 
 async function deleteAuthor(id) {
-  if (!confirm(t('settings.confirm_delete_author'))) return
+  if (!confirm(props.app.t('settings.confirm_delete_author'))) return
   try {
-    const res = await api.delete(`/api/payment-authors/${id}`)
-    if (res && res.success) {
+    const res = await fetch(`/api/payment-authors/${id}`, {
+      method: 'DELETE'
+    })
+    const data = await res.json()
+    if (data && data.success) {
       authors.value = authors.value.filter(a => a.id !== id)
     } else {
-      alert(res?.error || 'Ошибка удаления')
+      alert(data?.error || 'Ошибка удаления')
     }
   } catch (error) {
     alert(error.message || 'Ошибка удаления')
@@ -268,10 +288,7 @@ async function deleteAuthor(id) {
 import { KeyRound as KeyRoundIcon, QrCode as QrCodeIcon, Save as SaveIcon, Send as SendIcon, Settings as SettingsIcon, ShieldCheck as ShieldCheckIcon } from "@lucide/vue";
 
 export default {
-  components: { KeyRoundIcon, QrCodeIcon, SaveIcon, SendIcon, SettingsIcon, ShieldCheckIcon },
-  props: {
-    app: { type: Object, required: true }
-  }
+  components: { KeyRoundIcon, QrCodeIcon, SaveIcon, SendIcon, SettingsIcon, ShieldCheckIcon }
 };
 </script>
 
