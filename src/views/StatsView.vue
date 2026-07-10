@@ -14,6 +14,23 @@
     <div class="stats-grid">
       <article v-for="card in app.statCards" :key="card.label" class="stat-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article>
     </div>
+    <article class="chart-panel forecast-panel">
+      <div class="chart-title-row">
+        <h2>{{ app.t("stats.forecastTitle") }}</h2>
+        <span>{{ app.formatBoth(app.nextMonthForecastTotals) }}</span>
+      </div>
+      <p class="forecast-note">{{ app.t("stats.forecastHint") }}</p>
+      <div v-if="app.nextMonthForecast.length" class="forecast-list">
+        <div v-for="item in app.nextMonthForecast" :key="item.asset.id">
+          <span>
+            <strong>{{ item.asset.name }}</strong>
+            <small>{{ app.typeLabel(item.asset.type) }} · {{ app.formatDateTime(item.dueAt) }}</small>
+          </span>
+          <strong>{{ app.formatBoth(app.totalsBoth([item.payment])) }}</strong>
+        </div>
+      </div>
+      <div v-else class="inline-empty">{{ app.t("stats.forecastEmpty") }}</div>
+    </article>
     <div class="charts-grid">
       <article class="chart-panel wide-chart">
         <div class="chart-title-row">

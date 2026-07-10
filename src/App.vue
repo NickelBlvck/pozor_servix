@@ -518,6 +518,12 @@ export default {
         { label: this.t("stats.cardOverdue"), value: overdue }
       ];
     },
+    nextMonthForecast() {
+      return buildNextMonthForecast(this.assets, this.meta.timezone || "Europe/Moscow");
+    },
+    nextMonthForecastTotals() {
+      return sumPaymentsBoth(this.nextMonthForecast.map((item) => item.payment));
+    },
     paymentTimeline() {
       return buildPaymentTimeline(this.periodPayments, this.statsPeriod, this.currentLocale, this.meta.timezone);
     },
@@ -1477,6 +1483,55 @@ function sumPaymentsBoth(payments = []) {
     acc.rub += Number(payment.rub || 0);
     return acc;
   }, { usdt: 0, rub: 0 });
+}
+
+function dateKeyInTimezone(date, timezone) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(date)
+    .filter((part) => part.type !== "literal");
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function nextMonthRange(timezone) {
+  const [year, month] = dateKeyInTimezone(new Date(), timezone).split("-").map(Number);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const afterYear = nextMonth === 12 ? nextYear + 1 : nextYear;
+  const afterMonth = nextMonth === 12 ? 1 : nextMonth + 1;
+  return {
+    startKey: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
+    endKey: `${afterYear}-${String(afterMonth).padStart(2, "0")}-01`
+  };
+}
+
+function addCalendarMonths(date, months) {
+  const value = new Date(date);
+  const day = value.getDate();
+  value.setDate(1);
+  value.setMonth(value.getMonth() + months);
+  value.setDate(Math.min(day, new Date(value.getFullYear(), value.getMonth() + 1, 0).getDate()));
+  return value;
+}
+
+function buildNextMonthForecast(assets, timezone) {
+  const range = nextMonthRange(timezone);
+  return assets
+    .filter((asset) => !asset.inactive && (asset.payments || []).length)
+    .map((asset) => {
+      const latest = [...asset.payments]
+        .map((payment) => ({ payment, paidAt: parseAppDate(payment.paidAt) }))
+        .filter((item) => !Number.isNaN(item.paidAt.getTime()))
+        .sort((a, b) => b.paidAt - a.paidAt)[0];
+      if (!latest) return null;
+      let dueAt = new Date(latest.paidAt);
+      const cycleMonths = asset.type === "vps" ? 1 : 12;
+      while (dateKeyInTimezone(dueAt, timezone) < range.startKey) dueAt = addCalendarMonths(dueAt, cycleMonths);
+      if (dateKeyInTimezone(dueAt, timezone) >= range.endKey) return null;
+      return { asset, payment: latest.payment, dueAt: dueAt.toISOString() };
+    })
+    .filter(Boolean)
+    .sort((a, b) => String(a.dueAt).localeCompare(String(b.dueAt)) || Number(b.payment.rub || 0) - Number(a.payment.rub || 0));
 }
 
 function buildPaymentTimeline(payments, period, locale = "ru", timezone = "Europe/Moscow") {

@@ -1546,6 +1546,51 @@ label {
   color: var(--accent-strong);
 }
 
+.forecast-panel {
+  margin-bottom: 14px;
+}
+
+.forecast-note {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.forecast-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.forecast-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 10px 12px;
+}
+
+.forecast-list span,
+.forecast-list strong,
+.forecast-list small {
+  display: block;
+}
+
+.forecast-list small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.forecast-list > div > strong {
+  color: var(--accent-strong);
+  font-size: 13px;
+  text-align: right;
+}
+
 .totp-setup-grid {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -2645,6 +2690,7 @@ label {
   .toolbar, .search-row, .form-grid, .compact-grid, .payment-row, .quick-payment, .quick-date-row, .charts-grid, .donut-wrap, .bar-row, .payment-count-chart div, .payments-table-head, .payments-table-row, .table-toolbar, .logs-table-head, .logs-table-row { grid-template-columns: 1fr; }
   .settings-stack,
   .settings-form-grid,
+  .forecast-list,
   .guide-search-panel,
   .guide-advice-grid,
   .totp-setup-grid {

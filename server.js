@@ -1074,6 +1074,48 @@ function rankReportPayments(payments, keyFor, nameFor) {
   return [...rows.values()].sort((a, b) => b.rub - a.rub || b.usdt - a.usdt);
 }
 
+function addCalendarMonths(date, months) {
+  const value = new Date(date);
+  const day = value.getDate();
+  value.setDate(1);
+  value.setMonth(value.getMonth() + months);
+  const lastDay = new Date(value.getFullYear(), value.getMonth() + 1, 0).getDate();
+  value.setDate(Math.min(day, lastDay));
+  return value;
+}
+
+function nextMonthRange(timezone) {
+  const { year, month } = calendarPartsInTimezone(new Date(), timezone);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const afterYear = nextMonth === 12 ? nextYear + 1 : nextYear;
+  const afterMonth = nextMonth === 12 ? 1 : nextMonth + 1;
+  return {
+    startKey: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
+    endKey: `${afterYear}-${String(afterMonth).padStart(2, "0")}-01`
+  };
+}
+
+function getNextMonthForecast(data, timezone) {
+  const range = nextMonthRange(timezone);
+  return data.assets
+    .filter((asset) => !asset.inactive && (asset.payments || []).length)
+    .map((asset) => {
+      const latestPayment = [...asset.payments]
+        .map((payment) => ({ payment, paidAt: parseAppDate(payment.paidAt) }))
+        .filter((item) => item.paidAt)
+        .sort((a, b) => b.paidAt - a.paidAt)[0];
+      if (!latestPayment) return null;
+      const cycleMonths = asset.type === "vps" ? 1 : 12;
+      let dueAt = new Date(latestPayment.paidAt);
+      while (dateKeyInTimezone(dueAt, timezone) < range.startKey) dueAt = addCalendarMonths(dueAt, cycleMonths);
+      if (dateKeyInTimezone(dueAt, timezone) >= range.endKey) return null;
+      return { asset, payment: latestPayment.payment, dueAt };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dueAt - b.dueAt || Number(b.payment.rub || 0) - Number(a.payment.rub || 0));
+}
+
 function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
   const meta = getMeta();
   const timezone = meta.timezone;
@@ -1083,6 +1125,8 @@ function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
   const authors = rankReportPayments(payments, (payment) => payment.authorId || "__none__", (payment) => payment.authorName || t(locale, "payments.noAuthor"));
   const providers = rankReportPayments(payments, (payment) => payment.asset.providerId || "__none__", (payment) => payment.providerName || t(locale, "common.providerEmpty"));
   const servers = rankReportPayments(payments, (payment) => payment.asset.id, (payment) => payment.asset.name);
+  const forecast = getNextMonthForecast(getData(), timezone);
+  const forecastTotals = totalsBoth(forecast.map((item) => item.payment));
   const lines = [
     test ? t(locale, "telegram.statsReportTest") : t(locale, "telegram.statsReportTitle", { period: range.label }),
     "",
@@ -1111,6 +1155,16 @@ function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
   lines.push("", `🖥 <b>${escapeTelegram(t(locale, "telegram.statsTopServers"))}</b>`);
   for (const server of servers.slice(0, 5)) {
     lines.push(`   • ${escapeTelegram(server.name)} — ${escapeTelegram(formatReportAmount(server, locale))}`);
+  }
+  lines.push("", `🔮 <b>${escapeTelegram(t(locale, "telegram.statsForecast"))}</b>`);
+  if (!forecast.length) {
+    lines.push(`   ${escapeTelegram(t(locale, "telegram.statsForecastEmpty"))}`);
+  } else {
+    lines.push(`   ${escapeTelegram(formatReportAmount(forecastTotals, locale))}`);
+    for (const item of forecast.slice(0, 5)) {
+      const date = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru-RU", { day: "2-digit", month: "2-digit", timeZone: timezone }).format(item.dueAt);
+      lines.push(`   • ${escapeTelegram(date)} · ${escapeTelegram(item.asset.name)} — ${escapeTelegram(formatReportAmount(item.payment, locale))}`);
+    }
   }
   return lines.join("\n");
 }

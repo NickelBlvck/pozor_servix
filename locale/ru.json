@@ -74,7 +74,9 @@
     "cardMaxPayment": "Макс. платеж", "cardMaxPaymentRub": "Макс. RUB", "cardMaxPaymentUsdt": "Макс. USDT",
     "cardSoon": "Скоро истекают", "cardOverdue": "Просрочено",
     "segmentStable": "Стабильно", "segmentSoon": "Скоро", "segmentOverdue": "Просрочено",
-    "totalUsdt": "Всего USDT", "totalRub": "Всего RUB", "exchangeRate": "Курс обмена"
+    "totalUsdt": "Всего USDT", "totalRub": "Всего RUB", "exchangeRate": "Курс обмена",
+    "forecastTitle": "Прогноз расходов на следующий месяц", "forecastHint": "Только активные записи с хотя бы одним платежом: VPS — раз в месяц, домены и сертификаты — раз в год.",
+    "forecastEmpty": "Регулярных платежей на следующий месяц нет"
   },
   "alerts": {
     "emptyTitle": "Сроков нет", "emptyText": "Истечения в ближайшие дни не требуют внимания.",
@@ -356,6 +358,8 @@
     "statsByAuthors": "По авторам",
     "statsByProviders": "По провайдерам",
     "statsTopServers": "Топ-5 серверов",
+    "statsForecast": "Прогноз на следующий месяц",
+    "statsForecastEmpty": "Нет регулярных платежей на следующий месяц",
     "statsNoAuthor": "Без автора"
   },
   "toast": { "login": "Вход выполнен", "requestError": "Ошибка запроса" },

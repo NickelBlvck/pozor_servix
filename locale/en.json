@@ -155,6 +155,9 @@
     "pageSize": "Payments per page",
     "noFilteredPayments": "No payments match the selected filters",
     "noPeriodPayments": "No server payments for the selected period",
+    "forecastTitle": "Spending forecast for next month",
+    "forecastHint": "Only active records with at least one payment: VPS monthly, domains and certificates yearly.",
+    "forecastEmpty": "No recurring payments next month",
     "prevPage": "Previous page",
     "nextPage": "Next page",
     "cardServers": "Total servers",
@@ -489,7 +492,9 @@
     "statsAverageRate": "avg. rate",
     "statsByAuthors": "By author",
     "statsByProviders": "By hosting provider",
-    "statsTopServers": "Top 5 servers"
+    "statsTopServers": "Top 5 servers",
+    "statsForecast": "Forecast for next month",
+    "statsForecastEmpty": "No recurring payments next month"
   },
   "toast": {
     "login": "Logged in",
