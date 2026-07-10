@@ -64,6 +64,8 @@ services:
       SITE_TITLE: "SERVIX"
       DATA_DIR: "/app/data"
       APP_TIMEZONE: "Europe/Moscow"
+      PLATEGA_MERCHANT_ID: "your_platega_merchant_id"
+      PLATEGA_SECRET: "your_platega_secret"
       TELEGRAM_NOTIFY_URL: "tgram://TOKEN/CHAT_ID:TOPIC_ID"
       NOTIFY_ON_START: "true"
     volumes:
