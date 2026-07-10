@@ -16,4 +16,21 @@ README проекта - https://github.com/sansepro/servix
 4. ~~Прогнозирование на след. Месяц~~ ✅
 5. Выбор валюты Графиков в "Статистика"
 
-Все что написано сделано с помощью Cursor, z.ai и Qwen. 
+Все что написано сделано с помощью Cursor, z.ai и Qwen.
+
+## Переменные окружения
+
+- `PLATEGA_MERCHANT_ID` — ваш Merchant ID для Platega.
+- `PLATEGA_SECRET` — секретный ключ для доступа к Platega.
+
+Вы также можете задать эти параметры через админку в разделе настроек приложения.
+
+Пример в `docker-compose.yml`:
+
+```yaml
+services:
+  servix:
+    environment:
+      PLATEGA_MERCHANT_ID: "your_platega_merchant_id"
+      PLATEGA_SECRET: "your_platega_secret"
+```

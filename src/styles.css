@@ -1608,6 +1608,12 @@ label {
   gap: 8px;
 }
 
+.income-hint {
+  color: var(--muted);
+  margin-top: 10px;
+  font-size: 13px;
+}
+
 .income-list > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 42px;

@@ -79,6 +79,12 @@ TELEGRAM_NOTIFY_URL: "tgram://TOKEN/CHAT_ID"
 
 ## Environment Variables
 
+- `PLATEGA_MERCHANT_ID` — your Platega Merchant ID.
+- `PLATEGA_SECRET` — your Platega secret key.
+
+You can also configure these values from the app admin settings.
+
+
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `3000` | Port inside the container or local Node.js process. |

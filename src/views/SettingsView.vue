@@ -99,11 +99,14 @@
             </button>
           </span>
         </label>
+        <label>{{ app.t("settings.plategaMerchantId") }}<input v-model="app.settings.plategaMerchantId" type="text" autocomplete="off" placeholder="your_platega_merchant_id"></label>
+        <label>{{ app.t("settings.plategaSecret") }}<input v-model="app.settings.plategaSecret" type="password" autocomplete="new-password" placeholder="your_platega_secret"></label>
         <label>{{ app.t("settings.leads") }}<input v-model="app.settings.notificationLeads" type="text" placeholder="5m, 2h, 1d, 3d, 5d" required></label>
         <div class="settings-inline-footer">
           <label class="check-row"><input v-model="app.settings.notifyOnStart" type="checkbox">{{ app.t("settings.notifyOnStart") }}</label>
           <button class="primary-button" type="submit"><SaveIcon :size="18" />{{ app.t("common.save") }}</button>
         </div>
+        <p class="hint">{{ app.t("settings.plategaHelp") }}</p>
         <p class="hint">{{ app.t("settings.leadsHint") }}</p>
       </form>
 

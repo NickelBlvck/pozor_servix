@@ -7,6 +7,8 @@ services:
     environment:
       SITE_TITLE: "SERVIX"
       DATA_DIR: "/app/data"
+      PLATEGA_MERCHANT_ID: "your_platega_merchant_id"
+      PLATEGA_SECRET: "your_platega_secret"
       # TZ: "Europe/Moscow"
       # TELEGRAM_NOTIFY_URL: "tgram://TOKEN/CHAT_ID:TOPIC_ID"
       # NOTIFY_ON_START: "true"

@@ -1331,10 +1331,13 @@ function normalizeIncome(input) {
 }
 
 async function getPlategaBalances() {
-  if (!PLATEGA_MERCHANT_ID || !PLATEGA_SECRET) return { configured: false, balances: [], error: "Platega не настроена" };
+  const meta = getMeta();
+  const merchantId = String(process.env.PLATEGA_MERCHANT_ID || "").trim() || String(meta.plategaMerchantId || "").trim();
+  const secret = String(process.env.PLATEGA_SECRET || "").trim() || String(meta.plategaSecret || "").trim();
+  if (!merchantId || !secret) return { configured: false, balances: [], error: "Platega не настроена" };
   try {
     const response = await fetch("https://app.platega.io/balance/all", {
-      headers: { "X-MerchantId": PLATEGA_MERCHANT_ID, "X-Secret": PLATEGA_SECRET },
+      headers: { "X-MerchantId": merchantId, "X-Secret": secret },
       signal: AbortSignal.timeout(10_000)
     });
     const payload = await response.json().catch(() => null);
@@ -1626,6 +1629,8 @@ async function handleApi(req, res, url) {
     if (Object.hasOwn(body, "statsReportEnabled")) setMeta("statsReportEnabled", String(Boolean(body.statsReportEnabled)));
     if (Object.hasOwn(body, "statsReportDay")) setMeta("statsReportDay", String(Math.min(28, Math.max(1, Number(body.statsReportDay || 1)))));
     if (Object.hasOwn(body, "statsReportPeriod")) setMeta("statsReportPeriod", ["prev_month", "30d", "90d"].includes(body.statsReportPeriod) ? body.statsReportPeriod : "prev_month");
+    if (Object.hasOwn(body, "plategaMerchantId")) setMeta("plategaMerchantId", String(body.plategaMerchantId || "").trim());
+    if (Object.hasOwn(body, "plategaSecret")) setMeta("plategaSecret", String(body.plategaSecret || "").trim());
     process.env.TZ = getMeta().timezone;
     scheduleNotifications();
     scheduleStatsReport();

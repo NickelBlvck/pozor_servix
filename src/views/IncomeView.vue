@@ -24,7 +24,10 @@
           <small v-if="balance.frozenBalance > 0">{{ app.t('income.frozenBalance', { amount: formatMoney(balance.frozenBalance, balance.currency) }) }}</small>
         </div>
       </div>
-      <div v-else class="inline-empty">{{ platega.value.error || app.t('income.plategaEmpty') }}</div>
+      <div v-else class="inline-empty">
+        <div>{{ platega.value.error || app.t('income.plategaEmpty') }}</div>
+        <div class="income-hint">{{ app.t('income.plategaHint') }}</div>
+      </div>
     </article>
 
     <div class="income-layout">
@@ -90,7 +93,11 @@ function formatTotals(totals) {
 async function load() {
   loading.value = true
   try {
-    const [summary, list] = await Promise.all([props.app.api('/api/incomes/summary'), props.app.api('/api/incomes')])
+    const summaryPromise = props.app.api('/api/incomes/summary').catch((error) => ({ error: error.message, platega: { configured: false, balances: [], error: error.message }, incomes: [] }))
+    const listPromise = props.app.api('/api/incomes').catch((error) => ({ error: error.message, items: [], authors: [] }))
+    const [summary, list] = await Promise.all([summaryPromise, listPromise])
+    if (summary.error) props.app.toast(summary.error)
+    if (list.error) props.app.toast(list.error)
     platega.value = summary.platega || platega.value
     incomes.value = summary.incomes || list.items || []
     authors.value = list.authors || []
