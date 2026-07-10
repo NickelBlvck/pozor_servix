@@ -12,6 +12,11 @@
       <article class="stat-card"><span>{{ app.t('income.receipts') }}</span><strong>{{ incomes.length }}</strong></article>
     </div>
 
+    <div v-if="!loading && !platega.value.balances.length && !incomes.length" class="inline-empty income-empty-state">
+      <div><strong>{{ app.t('income.emptyStateTitle') }}</strong></div>
+      <div>{{ app.t('income.emptyStateText') }}</div>
+    </div>
+
     <article class="chart-panel income-balance-panel">
       <div class="chart-title-row">
         <h2>{{ app.t('income.plategaBalances') }}</h2>
@@ -58,7 +63,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Plus as PlusIcon, RefreshCw as RefreshCwIcon, Trash2 as Trash2Icon } from '@lucide/vue'
 
 const props = defineProps({ app: { type: Object, required: true } })
@@ -130,4 +135,11 @@ async function deleteIncome(id) {
 }
 
 onMounted(load)
+
+watch(
+  () => [props.app.view, props.app.meta.plategaMerchantId, props.app.meta.plategaSecret],
+  ([view]) => {
+    if (view === 'income') load()
+  }
+)
 </script>

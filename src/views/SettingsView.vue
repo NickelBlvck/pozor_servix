@@ -203,6 +203,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { FileText as FileTextIcon, KeyRound as KeyRoundIcon, QrCode as QrCodeIcon, Save as SaveIcon, Send as SendIcon, Settings as SettingsIcon, ShieldCheck as ShieldCheckIcon } from '@lucide/vue'
 
 const props = defineProps({
   app: { type: Object, required: true }
