@@ -60,6 +60,7 @@
       <AssetsView v-show="view === 'assets'" :app="appContext" />
       <ProvidersView v-show="view === 'providers'" :app="appContext" />
       <StatsView v-show="view === 'stats'" :app="appContext" />
+      <IncomeView v-show="view === 'income'" :app="appContext" />
       <AlertsView v-show="view === 'alerts'" :app="appContext" />
       <LogsView v-show="view === 'logs'" :app="appContext" />
       <GuideView v-show="view === 'guide'" :app="appContext" />
@@ -224,6 +225,7 @@ import AlertsView from "./views/AlertsView.vue";
 import AssetsView from "./views/AssetsView.vue";
 import CountryFlag from "./components/CountryFlag.vue";
 import GuideView from "./views/GuideView.vue";
+import IncomeView from "./views/IncomeView.vue";
 import LogsView from "./views/LogsView.vue";
 import ProvidersView from "./views/ProvidersView.vue";
 import SettingsView from "./views/SettingsView.vue";
@@ -293,6 +295,7 @@ const navItems = [
   { view: "assets", labelKey: "nav.assets", icon: ServerIcon },
   { view: "providers", labelKey: "nav.providers", icon: BuildingIcon },
   { view: "stats", labelKey: "nav.stats", icon: BarChartIcon },
+  { view: "income", labelKey: "nav.income", icon: CreditCardIcon },
   { view: "alerts", labelKey: "nav.alerts", icon: BellIcon },
   { view: "logs", labelKey: "nav.logs", icon: ScrollTextIcon },
   { view: "guide", labelKey: "nav.guide", icon: BookOpenIcon },
@@ -316,6 +319,7 @@ export default {
     ExternalLinkIcon,
     FileTextIcon,
     GuideView,
+    IncomeView,
     KeyRoundIcon,
     LoginView,
     LogOutIcon,
@@ -1434,6 +1438,7 @@ function viewFromPath(pathname) {
     "/": "assets",
     "/providers": "providers",
     "/stats": "stats",
+    "/income": "income",
     "/alerts": "alerts",
     "/logs": "logs",
     "/guide": "guide",
@@ -1446,6 +1451,7 @@ function pathFromView(view) {
     assets: "/",
     providers: "/providers",
     stats: "/stats",
+    income: "/income",
     alerts: "/alerts",
     logs: "/logs",
     guide: "/guide",

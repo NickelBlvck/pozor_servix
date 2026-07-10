@@ -18,6 +18,8 @@ const LEGACY_JSON_FILE = path.join(DATA_DIR, "assets.json");
 const PUBLIC_DIR = path.join(__dirname, "dist");
 const LOCALE_DIR = path.join(__dirname, "locale");
 const TELEGRAM_NOTIFY_URL = String(process.env.TELEGRAM_NOTIFY_URL || "");
+const PLATEGA_MERCHANT_ID = String(process.env.PLATEGA_MERCHANT_ID || "").trim();
+const PLATEGA_SECRET = String(process.env.PLATEGA_SECRET || "").trim();
 const NOTIFY_ON_START = String(process.env.NOTIFY_ON_START || "true") === "true";
 const APP_TIMEZONE = String(process.env.APP_TIMEZONE || "Europe/Moscow");
 const MAX_TIMEOUT_MS = 2_147_483_647;
@@ -112,6 +114,7 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS users ( id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL );
     CREATE TABLE IF NOT EXISTS currency_rates ( id INTEGER PRIMARY KEY AUTOINCREMENT, currency_code TEXT NOT NULL, rate REAL NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')) );
     CREATE TABLE IF NOT EXISTS payment_authors ( id TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')) );
+    CREATE TABLE IF NOT EXISTS incomes ( id TEXT PRIMARY KEY, amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'RUB', name TEXT NOT NULL, author_id TEXT NOT NULL DEFAULT '', balance_name TEXT NOT NULL DEFAULT '', received_at TEXT NOT NULL, created_at TEXT NOT NULL );
   `);
 
   ensureColumn("providers", "color", "TEXT NOT NULL DEFAULT ''");
@@ -1304,6 +1307,51 @@ function getPaymentAuthors() {
   return db.prepare("SELECT * FROM payment_authors WHERE is_active = 1 ORDER BY sort_order, name").all();
 }
 
+function listIncomes() {
+  const authorNames = new Map(getPaymentAuthors().map((author) => [author.id, author.name]));
+  return db.prepare("SELECT id, amount, currency, name, author_id AS authorId, balance_name AS balanceName, received_at AS receivedAt, created_at AS createdAt FROM incomes ORDER BY received_at DESC, created_at DESC")
+    .all()
+    .map((income) => ({ ...income, authorName: authorNames.get(income.authorId) || "" }));
+}
+
+function normalizeIncome(input) {
+  const amount = Number(input.amount || 0);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Сумма поступления должна быть больше нуля");
+  const name = String(input.name || "").trim();
+  if (!name) throw new Error("Название поступления обязательно");
+  const currency = ["RUB", "USDT"].includes(String(input.currency || "RUB").toUpperCase()) ? String(input.currency).toUpperCase() : "RUB";
+  return {
+    amount,
+    name,
+    currency,
+    authorId: String(input.authorId || "").trim(),
+    balanceName: String(input.balanceName || "").trim() || "Прочий баланс",
+    receivedAt: normalizeDateTime(input.receivedAt || new Date().toISOString(), { dateOnlyOk: true })
+  };
+}
+
+async function getPlategaBalances() {
+  if (!PLATEGA_MERCHANT_ID || !PLATEGA_SECRET) return { configured: false, balances: [], error: "Platega не настроена" };
+  try {
+    const response = await fetch("https://app.platega.io/balance/all", {
+      headers: { "X-MerchantId": PLATEGA_MERCHANT_ID, "X-Secret": PLATEGA_SECRET },
+      signal: AbortSignal.timeout(10_000)
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !Array.isArray(payload)) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+    return {
+      configured: true,
+      balances: payload.map((item) => ({
+        currency: String(item.currency || "").toUpperCase(),
+        amount: Number(item.amount || 0),
+        frozenBalance: Number(item.frozenBalance || 0)
+      })).filter((item) => item.currency)
+    };
+  } catch (error) {
+    return { configured: true, balances: [], error: error.message || "Не удалось получить баланс Platega" };
+  }
+}
+
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/auth/status") {
     return sendJson(res, 200, { setupRequired: userCount() === 0, authenticated: isAuthed(req), meta: getPublicMeta() });
@@ -1486,6 +1534,25 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/assets") return sendJson(res, 200, getData());
+  if (req.method === "GET" && url.pathname === "/api/incomes") return sendJson(res, 200, { items: listIncomes(), authors: getPaymentAuthors() });
+  if (req.method === "GET" && url.pathname === "/api/incomes/summary") {
+    const [platega, incomes] = await Promise.all([getPlategaBalances(), Promise.resolve(listIncomes())]);
+    return sendJson(res, 200, { platega, incomes });
+  }
+  if (req.method === "POST" && url.pathname === "/api/incomes") {
+    const income = { id: crypto.randomUUID(), ...normalizeIncome(await readBody(req)), createdAt: new Date().toISOString() };
+    db.prepare("INSERT INTO incomes (id, amount, currency, name, author_id, balance_name, received_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(income.id, income.amount, income.currency, income.name, income.authorId, income.balanceName, income.receivedAt, income.createdAt);
+    await logAction(req, "income.create", { id: income.id, amount: income.amount, currency: income.currency, balance: income.balanceName });
+    return sendJson(res, 201, { ...income, authorName: getPaymentAuthors().find((author) => author.id === income.authorId)?.name || "" });
+  }
+  const incomeMatch = url.pathname.match(/^\/api\/incomes\/([^/]+)$/);
+  if (incomeMatch && req.method === "DELETE") {
+    const result = db.prepare("DELETE FROM incomes WHERE id = ?").run(incomeMatch[1]);
+    if (!result.changes) return sendJson(res, 404, { error: "Поступление не найдено" });
+    await logAction(req, "income.delete", { id: incomeMatch[1] });
+    return sendJson(res, 200, { success: true });
+  }
   if (req.method === "GET" && url.pathname === "/api/logs") return sendJson(res, 200, { items: await readAccessLog() });
   if (req.method === "GET" && url.pathname === "/api/notifications") return sendJson(res, 200, { items: getDueItems() });
   if (req.method === "POST" && url.pathname === "/api/telegram/test") {

@@ -11,9 +11,10 @@
     "subtitle": "CRM SYSTEM"
   },
   "nav": {
-    "assets": "Records",
+    "assets": "Payments",
     "providers": "Providers",
-    "stats": "Statistics",
+    "stats": "Expenses",
+    "income": "Income",
     "alerts": "Alerts",
     "logs": "Logs",
     "guide": "Manual",
@@ -198,6 +199,12 @@
     "details": "Details",
     "pageSize": "Logs per page",
     "empty": "No logs yet"
+  },
+  "income": {
+    "title": "Income", "subtitle": "Receipts and free funds across all balances.",
+    "freeMoney": "Total free funds", "plategaMoney": "Funds on Platega", "otherMoney": "Funds from other sources", "receipts": "Receipts",
+    "add": "Add receipt", "manualReceipts": "Manual receipts", "name": "Name", "amount": "Amount", "balance": "Balance",
+    "balancePlaceholder": "For example, cash or YooMoney", "empty": "No manual receipts yet", "saved": "Receipt added", "deleteConfirm": "Delete this receipt?"
   },
   "settings": {
     "subtitle": "Service behavior, notifications, and account security in one place.",
