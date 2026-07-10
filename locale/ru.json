@@ -107,7 +107,17 @@
     "save_currency": "Сохранить настройки валют",
     "add_author": "Добавить автора",
     "author_added": "Автор добавлен", "author_deleted": "Автор удалён",
-    "author_delete_error": "Ошибка удаления автора"
+    "author_delete_error": "Ошибка удаления автора",
+    "statsReports": "Статистические отчёты",
+    "statsReportsSubtitle": "Ежемесячные отчёты о расходах в Telegram",
+    "statsNotifyUrl": "URL для отчётов",
+    "statsReportEnabled": "Включить автоматические отчёты",
+    "statsReportDay": "День отправки (1-28)",
+    "statsReportPeriod": "Период отчёта",
+    "statsReportPeriodPrevMonth": "Прошлый месяц",
+    "statsReportPeriod30d": "Последние 30 дней",
+    "statsReportPeriod90d": "Последние 90 дней",
+    "testStatsTelegram": "Тест отчёта"
   },
   "guide": {
     "subtitle": "Полное руководство по работе с панелью: записи, платежи, уведомления, безопасность и обслуживание.",
@@ -336,7 +346,16 @@
     "title": "⚠️ <b>Скоро истекает услуга</b>", "provider": "Провайдер",
     "expiresAt": "Истекает", "left": "Осталось", "trigger": "Триггер",
     "triggerBefore": "за {lead}", "paidTotal": "Оплачено всего",
-    "paymentButton": "Перейти к оплате"
+    "paymentButton": "Перейти к оплате",
+    "statsReportTitle": " <b>Отчёт за {period}</b>",
+    "statsReportTest": "📊 <b>Тестовый отчёт</b>",
+    "statsTotal": "Всего потрачено",
+    "statsPayments": "Платежей",
+    "statsAvgPayment": "Средний платёж",
+    "statsByAuthors": "По авторам",
+    "statsByProviders": "По провайдерам",
+    "statsTopServers": "Топ-5 серверов",
+    "statsNoAuthor": "Без автора"
   },
   "toast": { "login": "Вход выполнен", "requestError": "Ошибка запроса" },
   "export": { "title": "Платежи за период", "date": "Дата", "server": "Сервер", "provider": "Провайдер", "amount": "Сумма" },
