@@ -376,7 +376,7 @@ export default {
       countrySearch: "",
       countrySelectOpen: false,
       meta: { siteTitle: translate("ru", "app.defaultTitle"), notificationLeads: "5m,2h,1d,3d,5d", locale: "ru", timezone: "Europe/Moscow", telegramNotifyUrl: "", notifyOnStart: true, telegramConfigured: false },
-      settings: { siteTitle: translate("ru", "app.defaultTitle"), notificationLeads: "5m,2h,1d,3d,5d", locale: "ru", timezone: "Europe/Moscow", telegramNotifyUrl: "", notifyOnStart: true },
+      settings: { siteTitle: translate("ru", "app.defaultTitle"), notificationLeads: "5m,2h,1d,3d,5d", locale: "ru", timezone: "Europe/Moscow", telegramNotifyUrl: "", notifyOnStart: true, plategaMerchantId: "", plategaSecret: "" },
       passwordForm: { currentPassword: "", newPassword: "", passwordRepeat: "" },
       security: { login: "", totpEnabled: false, hasPendingTotp: false },
       twoFactor: { currentPassword: "", token: "", secret: "", otpauthUrl: "", qrCode: "" },
@@ -831,7 +831,9 @@ export default {
         locale: this.currentLocale,
         timezone: data.meta.timezone || "Europe/Moscow",
         telegramNotifyUrl: data.meta.telegramNotifyUrl || "",
-        notifyOnStart: Boolean(data.meta.notifyOnStart)
+        notifyOnStart: Boolean(data.meta.notifyOnStart),
+        plategaMerchantId: data.meta.plategaMerchantId || "",
+        plategaSecret: data.meta.plategaSecret || ""
       };
       this.providers = data.providers || [];
       this.assets = data.assets || [];

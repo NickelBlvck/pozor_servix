@@ -203,6 +203,7 @@
   "income": {
     "title": "Income", "subtitle": "Receipts and free funds across all balances.",
     "freeMoney": "Total free funds", "plategaMoney": "Funds on Platega", "otherMoney": "Funds from other sources", "receipts": "Receipts",
+    "plategaBalances": "Platega balances", "plategaBalancesHelp": "Shows current Platega balances.", "plategaEmpty": "No Platega balances found", "plategaHint": "Enter Platega credentials in admin settings or set PLATEGA_MERCHANT_ID and PLATEGA_SECRET in docker-compose.yml.", "frozenBalance": "Frozen: {amount}",
     "add": "Add receipt", "manualReceipts": "Manual receipts", "name": "Name", "amount": "Amount", "balance": "Balance",
     "balancePlaceholder": "For example, cash or YooMoney", "empty": "No manual receipts yet", "saved": "Receipt added", "deleteConfirm": "Delete this receipt?"
   },
@@ -217,6 +218,9 @@
     "timezone": "Timezone",
     "telegramNotifyUrl": "Notification URL",
     "notifyOnStart": "Send notifications on start",
+    "plategaMerchantId": "Platega Merchant ID",
+    "plategaSecret": "Platega Secret",
+    "plategaHelp": "Enter Platega credentials in admin settings or use docker-compose environment variables.",
     "saved": "Settings saved",
     "testTelegram": "Test Telegram",
     "currency": "Currency",
