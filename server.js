@@ -1020,9 +1020,14 @@ function getReportRange(period, timezone, locale = "ru") {
 
 function getVpsPaymentsForReport() {
   const data = getData();
+  const providerNames = new Map(data.providers.map((provider) => [provider.id, provider.name]));
   return data.assets
     .filter((asset) => asset.type === "vps")
-    .flatMap((asset) => (asset.payments || []).map((payment) => ({ ...payment, asset })));
+    .flatMap((asset) => (asset.payments || []).map((payment) => ({
+      ...payment,
+      asset,
+      providerName: providerNames.get(asset.providerId) || ""
+    })));
 }
 
 function filterPaymentsByReportRange(payments, range, timezone) {
@@ -1038,7 +1043,7 @@ function filterPaymentsByReportRange(payments, range, timezone) {
   }
   return payments.filter((payment) => {
     const paidAt = parseAppDate(payment.paidAt);
-    if (Number.isNaN(paidAt.getTime())) return false;
+    if (!paidAt || Number.isNaN(paidAt.getTime())) return false;
     const key = dateKeyInTimezone(paidAt, timezone);
     return key >= range.startKey && key < range.endKey;
   });
@@ -1048,29 +1053,41 @@ function paymentCountLabel(count, locale = "ru") {
   return tc(locale, "payment", count);
 }
 
+function formatReportAmount(totals, locale = "ru") {
+  const rub = Number(totals.rub || 0);
+  const usdt = Number(totals.usdt || 0);
+  if (!rub || !usdt) return formatBoth({ rub, usdt }, locale);
+  const rate = new Intl.NumberFormat(locale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 4 }).format(rub / usdt);
+  return `${formatRub(rub, locale)} ≈ ${formatUsdt(usdt, locale)} · ${t(locale, "telegram.statsAverageRate")}: ${rate} ₽/USDT`;
+}
+
+function rankReportPayments(payments, keyFor, nameFor) {
+  const rows = new Map();
+  for (const payment of payments) {
+    const key = keyFor(payment);
+    if (!rows.has(key)) rows.set(key, { name: nameFor(payment), count: 0, rub: 0, usdt: 0 });
+    const row = rows.get(key);
+    row.count += 1;
+    row.rub += Number(payment.rub || 0);
+    row.usdt += Number(payment.usdt || 0);
+  }
+  return [...rows.values()].sort((a, b) => b.rub - a.rub || b.usdt - a.usdt);
+}
+
 function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
   const meta = getMeta();
   const timezone = meta.timezone;
   const range = getReportRange(period, timezone, locale);
   const payments = filterPaymentsByReportRange(getVpsPaymentsForReport(), range, timezone);
   const totals = totalsBoth(payments);
-  const authorMap = new Map();
-  for (const payment of payments) {
-    const key = payment.authorId || "__none__";
-    const name = payment.authorName || t(locale, "payments.noAuthor");
-    if (!authorMap.has(key)) authorMap.set(key, { name, count: 0, rub: 0, usdt: 0 });
-    const row = authorMap.get(key);
-    row.count += 1;
-    row.rub += Number(payment.rub || 0);
-    row.usdt += Number(payment.usdt || 0);
-  }
-  const authors = [...authorMap.values()].sort((a, b) => b.rub - a.rub || b.usdt - a.usdt);
+  const authors = rankReportPayments(payments, (payment) => payment.authorId || "__none__", (payment) => payment.authorName || t(locale, "payments.noAuthor"));
+  const providers = rankReportPayments(payments, (payment) => payment.asset.providerId || "__none__", (payment) => payment.providerName || t(locale, "common.providerEmpty"));
+  const servers = rankReportPayments(payments, (payment) => payment.asset.id, (payment) => payment.asset.name);
   const lines = [
     test ? t(locale, "telegram.statsReportTest") : t(locale, "telegram.statsReportTitle", { period: range.label }),
     "",
     `💰 <b>${escapeTelegram(t(locale, "telegram.statsTotal"))}</b>`,
-    `   ${escapeTelegram(formatRub(totals.rub, locale))}`,
-    `   ${escapeTelegram(formatUsdt(totals.usdt, locale))}`,
+    `   ${escapeTelegram(formatReportAmount(totals, locale))}`,
     "",
     `🧾 <b>${escapeTelegram(t(locale, "telegram.statsPayments"))}</b> ${payments.length}`,
     "",
@@ -1079,9 +1096,21 @@ function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
   if (!authors.length) {
     lines.push(`   ${escapeTelegram(t(locale, "payments.empty"))}`);
   } else {
-    for (const author of authors) {
-      lines.push(`   • ${escapeTelegram(author.name)} — ${escapeTelegram(paymentCountLabel(author.count, locale))} · ${escapeTelegram(formatRub(author.rub, locale))} · ${escapeTelegram(formatUsdt(author.usdt, locale))}`);
+    for (const author of authors.slice(0, 5)) {
+      lines.push(`   • ${escapeTelegram(author.name)} — ${escapeTelegram(paymentCountLabel(author.count, locale))} · ${escapeTelegram(formatReportAmount(author, locale))}`);
     }
+  }
+  lines.push("", `🏢 <b>${escapeTelegram(t(locale, "telegram.statsByProviders"))}</b>`);
+  if (!providers.length) {
+    lines.push(`   ${escapeTelegram(t(locale, "payments.empty"))}`);
+  } else {
+    for (const provider of providers.slice(0, 5)) {
+      lines.push(`   • ${escapeTelegram(provider.name)} — ${escapeTelegram(paymentCountLabel(provider.count, locale))} · ${escapeTelegram(formatReportAmount(provider, locale))}`);
+    }
+  }
+  lines.push("", `🖥 <b>${escapeTelegram(t(locale, "telegram.statsTopServers"))}</b>`);
+  for (const server of servers.slice(0, 5)) {
+    lines.push(`   • ${escapeTelegram(server.name)} — ${escapeTelegram(formatReportAmount(server, locale))}`);
   }
   return lines.join("\n");
 }

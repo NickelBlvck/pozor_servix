@@ -352,6 +352,7 @@
     "statsTotal": "Всего потрачено",
     "statsPayments": "Платежей",
     "statsAvgPayment": "Средний платёж",
+    "statsAverageRate": "ср. курс",
     "statsByAuthors": "По авторам",
     "statsByProviders": "По провайдерам",
     "statsTopServers": "Топ-5 серверов",

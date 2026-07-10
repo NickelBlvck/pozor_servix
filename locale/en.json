@@ -486,7 +486,10 @@
     "statsReportTest": "📊 <b>Test report</b>",
     "statsTotal": "Total spent",
     "statsPayments": "Payments",
-    "statsByAuthors": "By author"
+    "statsAverageRate": "avg. rate",
+    "statsByAuthors": "By author",
+    "statsByProviders": "By hosting provider",
+    "statsTopServers": "Top 5 servers"
   },
   "toast": {
     "login": "Logged in",

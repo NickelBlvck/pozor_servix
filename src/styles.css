@@ -1521,6 +1521,19 @@ label {
   gap: 12px;
 }
 
+.stats-report-settings {
+  align-items: end;
+}
+
+.stats-report-url {
+  grid-column: 1 / -1;
+}
+
+.stats-report-settings .check-row {
+  min-height: 42px;
+  margin: 0;
+}
+
 .settings-inline-footer {
   display: flex;
   align-items: center;

@@ -116,8 +116,8 @@
             <span>{{ app.t('settings.statsReportsSubtitle') }}</span>
           </div>
         </div>
-        <div class="settings-form-grid">
-          <label>{{ app.t('settings.statsNotifyUrl') }}
+        <div class="settings-form-grid stats-report-settings">
+          <label class="stats-report-url">{{ app.t('settings.statsNotifyUrl') }}
             <span class="input-with-action">
               <input v-model="statsSettings.statsTelegramNotifyUrl" type="text" placeholder="tgram://token/chat_id:topic">
               <button class="input-action-button tooltip tooltip-left" type="button" :aria-label="app.t('settings.testStatsReport')" :data-tooltip="app.t('settings.testStatsReport')" @click="testStatsReport">
@@ -125,8 +125,6 @@
               </button>
             </span>
           </label>
-        </div>
-        <div class="settings-form-grid">
           <label class="check-row">
             <input type="checkbox" v-model="statsSettings.statsReportEnabled" />
             {{ app.t('settings.statsReportEnabled') }}
@@ -135,8 +133,6 @@
             {{ app.t('settings.statsReportDay') }}
             <input v-model="statsSettings.statsReportDay" type="number" min="1" max="28" required>
           </label>
-        </div>
-        <div class="settings-form-grid">
           <label>
             {{ app.t('settings.statsReportPeriod') }}
             <select v-model="statsSettings.statsReportPeriod">
