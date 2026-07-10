@@ -12,16 +12,29 @@
       <article class="stat-card"><span>{{ app.t('income.receipts') }}</span><strong>{{ incomes.length }}</strong></article>
     </div>
 
+    <article class="chart-panel income-balance-panel">
+      <div class="chart-title-row">
+        <h2>{{ app.t('income.plategaBalances') }}</h2>
+        <span>{{ app.t('income.plategaBalancesHelp') }}</span>
+      </div>
+      <div v-if="platega.value.balances.length" class="balance-list">
+        <div v-for="balance in platega.value.balances" :key="balance.currency" class="balance-row">
+          <span><strong>{{ balance.currency }}</strong></span>
+          <span>{{ formatMoney(balance.amount, balance.currency) }}</span>
+          <small v-if="balance.frozenBalance > 0">{{ app.t('income.frozenBalance', { amount: formatMoney(balance.frozenBalance, balance.currency) }) }}</small>
+        </div>
+      </div>
+      <div v-else class="inline-empty">{{ platega.value.error || app.t('income.plategaEmpty') }}</div>
+    </article>
+
     <div class="income-layout">
       <form class="chart-panel income-form" @submit.prevent="addIncome">
         <div class="chart-title-row"><h2>{{ app.t('income.add') }}</h2></div>
         <div class="form-grid compact-grid">
           <label>{{ app.t('income.name') }}<input v-model="form.name" type="text" required></label>
           <label>{{ app.t('income.amount') }}<input v-model.number="form.amount" type="number" min="0.01" step="0.01" required></label>
-          <label>{{ app.t('payments.currency') }}<select v-model="form.currency"><option value="RUB">RUB</option><option value="USDT">USDT</option></select></label>
           <label>{{ app.t('payments.author') }}<select v-model="form.authorId"><option value="">{{ app.t('payments.noAuthor') }}</option><option v-for="author in authors" :key="author.id" :value="author.id">{{ author.name }}</option></select></label>
           <label>{{ app.t('income.balance') }}<input v-model="form.balanceName" type="text" :placeholder="app.t('income.balancePlaceholder')" required></label>
-          <label>{{ app.t('common.date') }}<input v-model="form.receivedAt" type="date" required></label>
         </div>
         <button class="primary-button" type="submit"><PlusIcon :size="18" />{{ app.t('income.add') }}</button>
       </form>
@@ -50,7 +63,7 @@ const incomes = ref([])
 const authors = ref([])
 const loading = ref(false)
 const platega = ref({ configured: false, balances: [], error: '' })
-const form = reactive({ name: '', amount: '', currency: 'RUB', authorId: '', balanceName: '', receivedAt: new Date().toISOString().slice(0, 10) })
+const form = reactive({ name: '', amount: '', currency: 'RUB', authorId: '', balanceName: '' })
 
 function addToTotals(totals, currency, amount) {
   totals[currency] = (totals[currency] || 0) + Number(amount || 0)
@@ -91,7 +104,7 @@ async function load() {
 async function addIncome() {
   try {
     await props.app.api('/api/incomes', { method: 'POST', body: JSON.stringify(form) })
-    Object.assign(form, { name: '', amount: '', currency: 'RUB', authorId: '', balanceName: '', receivedAt: new Date().toISOString().slice(0, 10) })
+    Object.assign(form, { name: '', amount: '', currency: 'RUB', authorId: '', balanceName: '' })
     await load()
     props.app.toast(props.app.t('income.saved'))
   } catch (error) {
