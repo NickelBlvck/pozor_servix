@@ -224,7 +224,20 @@
     "add_author": "Add author",
     "author_added": "Author added",
     "author_deleted": "Author deleted",
-    "author_delete_error": "Error deleting author"
+    "author_delete_error": "Error deleting author",
+    "statsReports": "Statistics reports",
+    "statsReportsSubtitle": "Monthly spending reports to Telegram",
+    "statsNotifyUrl": "Report URL",
+    "statsReportEnabled": "Enable automatic reports",
+    "statsReportDay": "Send day (1-28)",
+    "statsReportPeriod": "Report period",
+    "statsReportPeriodPrevMonth": "Previous month",
+    "statsReportPeriod30d": "Last 30 days",
+    "statsReportPeriod90d": "Last 90 days",
+    "statsReportSaved": "Report settings saved",
+    "statsReportError": "Unable to send report",
+    "testStatsReport": "Test report",
+    "statsReportTestSent": "Test report sent"
   },
   "guide": {
     "subtitle": "A complete manual for records, payments, notifications, security, and operating practices.",
@@ -468,7 +481,12 @@
     "trigger": "Trigger",
     "triggerBefore": "{lead} before",
     "paidTotal": "Paid total",
-    "paymentButton": "Go to payment"
+    "paymentButton": "Go to payment",
+    "statsReportTitle": "📊 <b>Report for {period}</b>",
+    "statsReportTest": "📊 <b>Test report</b>",
+    "statsTotal": "Total spent",
+    "statsPayments": "Payments",
+    "statsByAuthors": "By author"
   },
   "toast": {
     "login": "Logged in",

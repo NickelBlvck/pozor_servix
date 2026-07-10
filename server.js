@@ -187,7 +187,7 @@ function getMeta() {
     enable_rub: meta.enable_rub === "1",
     auto_update_rates: meta.auto_update_rates === "1",
     statsTelegramNotifyUrl: meta.statsTelegramNotifyUrl || "",
-    statsReportEnabled: meta.statsReportEnabled === "1",
+    statsReportEnabled: ["1", "true"].includes(String(meta.statsReportEnabled).toLowerCase()),
     statsReportDay: Math.min(28, Math.max(1, Number(meta.statsReportDay || 1) || 1)),
     statsReportPeriod: ["prev_month", "30d", "90d"].includes(meta.statsReportPeriod) ? meta.statsReportPeriod : "prev_month",
     statsReportConfigured: Boolean(meta.statsTelegramNotifyUrl)
@@ -967,12 +967,15 @@ function scheduleNotifications() {
 
 function statsTelegramNotifyUrl() {
   if (!db) return "";
-  return getMeta().statsTelegramNotifyUrl || "";
+  // A separate destination is optional: by default reports go to the same chat
+  // as ordinary expiry notifications.
+  const meta = getMeta();
+  return meta.statsTelegramNotifyUrl || meta.telegramNotifyUrl || "";
 }
 
 function statsReportEnabled() {
   if (!db) return false;
-  return String(getMeta().statsReportEnabled ?? "false") === "true";
+  return Boolean(getMeta().statsReportEnabled);
 }
 
 function dateKeyInTimezone(date, timezone) {
@@ -1027,8 +1030,10 @@ function filterPaymentsByReportRange(payments, range, timezone) {
     const startMs = range.start.getTime();
     const endMs = range.end.getTime();
     return payments.filter((payment) => {
-      const paidAt = parseAppDate(payment.paidAt).getTime();
-      return !Number.isNaN(paidAt) && paidAt >= startMs && paidAt <= endMs;
+      const paidAt = parseAppDate(payment.paidAt);
+      if (!paidAt) return false;
+      const paidAtMs = paidAt.getTime();
+      return !Number.isNaN(paidAtMs) && paidAtMs >= startMs && paidAtMs <= endMs;
     });
   }
   return payments.filter((payment) => {
@@ -1082,7 +1087,7 @@ function buildStatsReportText(period, locale = "ru", { test = false } = {}) {
 }
 
 async function maybeSendStatsReport({ force = false, period, test = false } = {}) {
-  if (!statsTelegramNotifyUrl()) return { skipped: true, reason: "Stats Telegram URL не задан" };
+  if (!statsTelegramNotifyUrl()) return { skipped: true, reason: "Telegram URL не задан" };
   if (!force && !test && !statsReportEnabled()) return { skipped: true, reason: "Отчёты отключены" };
   const meta = getMeta();
   const timezone = meta.timezone;
@@ -1420,6 +1425,45 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: error.message });
     }
   }
+  if (req.method === "GET" && url.pathname === "/api/settings/stats_report") {
+    const meta = getMeta();
+    return sendJson(res, 200, {
+      success: true,
+      statsReportEnabled: meta.statsReportEnabled,
+      statsReportDay: meta.statsReportDay,
+      statsReportPeriod: meta.statsReportPeriod,
+      statsTelegramNotifyUrl: meta.statsTelegramNotifyUrl
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/api/settings/stats_report") {
+    const body = await readBody(req);
+    const enabled = Boolean(body.enabled);
+    const day = Math.min(28, Math.max(1, Math.trunc(Number(body.day) || 1)));
+    const period = ["prev_month", "30d", "90d"].includes(body.period) ? body.period : "prev_month";
+    const notifyUrl = String(body.url || "").trim();
+    if (notifyUrl) parseTelegramUrl(notifyUrl);
+    setMeta("statsReportEnabled", String(enabled));
+    setMeta("statsReportDay", String(day));
+    setMeta("statsReportPeriod", period);
+    setMeta("statsTelegramNotifyUrl", notifyUrl);
+    scheduleStatsReport();
+    await logAction(req, "settings.stats_report", { enabled, day, period, configured: Boolean(notifyUrl || telegramNotifyUrl()) });
+    return sendJson(res, 200, { success: true, ...getMeta() });
+  }
+  if (req.method === "POST" && url.pathname === "/api/stats/report") {
+    const body = await readBody(req);
+    const meta = getMeta();
+    const period = ["prev_month", "30d", "90d"].includes(body.period) ? body.period : meta.statsReportPeriod;
+    const notifyUrl = String(body.url || statsTelegramNotifyUrl()).trim();
+    try {
+      const text = buildStatsReportText(period, meta.locale || "ru", { test: Boolean(body.test) });
+      const result = await sendTelegramMessage(text, { notifyUrl });
+      await logAction(req, "stats_report.test", { period, skipped: Boolean(result?.skipped) });
+      return sendJson(res, 200, { ok: true, skipped: Boolean(result?.skipped), reason: result?.reason || "" });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
   if (req.method === "PUT" && url.pathname === "/api/settings") {
     const body = await readBody(req);
     setMeta("siteTitle", String(body.siteTitle || SITE_TITLE).trim());
@@ -1428,10 +1472,10 @@ async function handleApi(req, res, url) {
     setMeta("timezone", normalizeTimezone(body.timezone));
     setMeta("telegramNotifyUrl", String(body.telegramNotifyUrl || "").trim());
     setMeta("notifyOnStart", String(Boolean(body.notifyOnStart)));
-    setMeta("statsTelegramNotifyUrl", String(body.statsTelegramNotifyUrl || "").trim());
-    setMeta("statsReportEnabled", String(Boolean(body.statsReportEnabled)));
-    setMeta("statsReportDay", String(Math.min(28, Math.max(1, Number(body.statsReportDay || 1)))));
-    setMeta("statsReportPeriod", ["prev_month", "30d", "90d"].includes(body.statsReportPeriod) ? body.statsReportPeriod : "prev_month");
+    if (Object.hasOwn(body, "statsTelegramNotifyUrl")) setMeta("statsTelegramNotifyUrl", String(body.statsTelegramNotifyUrl || "").trim());
+    if (Object.hasOwn(body, "statsReportEnabled")) setMeta("statsReportEnabled", String(Boolean(body.statsReportEnabled)));
+    if (Object.hasOwn(body, "statsReportDay")) setMeta("statsReportDay", String(Math.min(28, Math.max(1, Number(body.statsReportDay || 1)))));
+    if (Object.hasOwn(body, "statsReportPeriod")) setMeta("statsReportPeriod", ["prev_month", "30d", "90d"].includes(body.statsReportPeriod) ? body.statsReportPeriod : "prev_month");
     process.env.TZ = getMeta().timezone;
     scheduleNotifications();
     scheduleStatsReport();

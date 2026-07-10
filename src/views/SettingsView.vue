@@ -376,7 +376,7 @@ async function saveStatsSettings() {
 
 async function testStatsReport() {
   try {
-    await props.app.api('/api/stats/report', {
+    const result = await props.app.api('/api/stats/report', {
       method: 'POST',
       body: JSON.stringify({
         url: statsSettings.value.statsTelegramNotifyUrl,
@@ -384,6 +384,7 @@ async function testStatsReport() {
         test: true
       })
     })
+    if (result?.skipped) throw new Error(result.reason || props.app.t('settings.statsReportError'))
     props.app.toast(props.app.t('settings.statsReportTestSent'))
   } catch (error) {
     props.app.toast(error.message || props.app.t('settings.statsReportError'))
