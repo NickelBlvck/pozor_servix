@@ -98,13 +98,13 @@ function formatTotals(totals) {
 async function load() {
   loading.value = true
   try {
-    const summaryPromise = props.app.api('/api/incomes/summary').catch((error) => ({ error: error.message, platega: { configured: false, balances: [], error: error.message }, incomes: [] }))
+    const summaryPromise = props.app.api('/api/incomes/summary').catch((error) => ({ error: error.message, platega: { configured: false, balances: [], error: error.message } }))
     const listPromise = props.app.api('/api/incomes').catch((error) => ({ error: error.message, items: [], authors: [] }))
     const [summary, list] = await Promise.all([summaryPromise, listPromise])
     if (summary.error) props.app.toast(summary.error)
     if (list.error) props.app.toast(list.error)
     platega.value = summary.platega || platega.value
-    incomes.value = summary.incomes || list.items || []
+    incomes.value = summary.error ? list.items || [] : (Array.isArray(summary.incomes) ? summary.incomes : list.items || [])
     authors.value = list.authors || []
   } catch (error) {
     props.app.toast(error.message)
