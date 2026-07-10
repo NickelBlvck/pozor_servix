@@ -93,6 +93,7 @@
   "income": {
     "title": "Доходы", "subtitle": "Поступления и свободные средства по всем балансам.",
     "freeMoney": "Всего свободных денег", "plategaMoney": "Денег на Platega", "otherMoney": "Денег из других источников", "receipts": "Поступлений",
+    "plategaBalances": "Баланс Platega", "plategaBalancesHelp": "Показывает текущие балансы Platega.", "plategaEmpty": "Балансы Platega не найдены", "frozenBalance": "Заморожено: {amount}",
     "add": "Добавить поступление", "manualReceipts": "Ручные поступления", "name": "Название", "amount": "Сумма", "balance": "На каком балансе",
     "balancePlaceholder": "Например, наличные или ЮMoney", "empty": "Ручных поступлений пока нет", "saved": "Поступление добавлено", "deleteConfirm": "Удалить это поступление?"
   },
