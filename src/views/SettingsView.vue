@@ -107,6 +107,52 @@
         <p class="hint">{{ app.t("settings.leadsHint") }}</p>
       </form>
 
+      <!-- Секция ежемесячных отчетов -->
+      <div class="settings-panel">
+        <div class="settings-card-head">
+          <div class="settings-card-icon"><FileTextIcon :size="18" /></div>
+          <div>
+            <h2>{{ app.t('settings.statsReports') }}</h2>
+            <span>{{ app.t('settings.statsReportsSubtitle') }}</span>
+          </div>
+        </div>
+        <div class="settings-form-grid">
+          <label>{{ app.t('settings.statsNotifyUrl') }}
+            <span class="input-with-action">
+              <input v-model="statsSettings.statsTelegramNotifyUrl" type="text" placeholder="tgram://token/chat_id:topic">
+              <button class="input-action-button tooltip tooltip-left" type="button" :aria-label="app.t('settings.testStatsReport')" :data-tooltip="app.t('settings.testStatsReport')" @click="testStatsReport">
+                <SendIcon :size="16" />
+              </button>
+            </span>
+          </label>
+        </div>
+        <div class="settings-form-grid">
+          <label class="check-row">
+            <input type="checkbox" v-model="statsSettings.statsReportEnabled" />
+            {{ app.t('settings.statsReportEnabled') }}
+          </label>
+          <label>
+            {{ app.t('settings.statsReportDay') }}
+            <input v-model="statsSettings.statsReportDay" type="number" min="1" max="28" required>
+          </label>
+        </div>
+        <div class="settings-form-grid">
+          <label>
+            {{ app.t('settings.statsReportPeriod') }}
+            <select v-model="statsSettings.statsReportPeriod">
+              <option value="prev_month">{{ app.t('settings.statsReportPeriodPrevMonth') }}</option>
+              <option value="30d">{{ app.t('settings.statsReportPeriod30d') }}</option>
+              <option value="90d">{{ app.t('settings.statsReportPeriod90d') }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="settings-inline-footer">
+          <button @click="saveStatsSettings" class="primary-button" type="button">
+            {{ app.t('common.save') }}
+          </button>
+        </div>
+      </div>
+
       <form class="settings-panel" @submit.prevent="app.changePassword">
         <div class="settings-card-head">
           <div class="settings-card-icon"><KeyRoundIcon :size="18" /></div>
@@ -167,12 +213,21 @@ const currencySettings = ref({
   default_currency: 'USDT',
   auto_update_rates: true
 })
+
 const authors = ref([])
 const newAuthorName = ref('')
+
+const statsSettings = ref({
+  statsReportEnabled: false,
+  statsReportDay: 1,
+  statsReportPeriod: 'prev_month',
+  statsTelegramNotifyUrl: ''
+})
 
 onMounted(async () => {
   await loadCurrencySettings()
   await loadAuthors()
+  await loadStatsSettings()
 })
 
 async function loadCurrencySettings() {
@@ -197,6 +252,22 @@ async function loadAuthors() {
     }
   } catch (error) {
     console.error('Failed to load authors:', error)
+  }
+}
+
+async function loadStatsSettings() {
+  try {
+    const data = await props.app.api('/api/settings/stats_report')
+    if (data && data.success) {
+      statsSettings.value = {
+        statsReportEnabled: data.statsReportEnabled || false,
+        statsReportDay: data.statsReportDay || 1,
+        statsReportPeriod: data.statsReportPeriod || 'prev_month',
+        statsTelegramNotifyUrl: data.statsTelegramNotifyUrl || ''
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load stats settings:', error)
   }
 }
 
@@ -285,13 +356,46 @@ async function deleteAuthor(id) {
     props.app.toast(error.message || props.app.t('settings.author_delete_error'))
   }
 }
+
+async function saveStatsSettings() {
+  try {
+    await props.app.api('/api/settings/stats_report', {
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: statsSettings.value.statsReportEnabled,
+        day: statsSettings.value.statsReportDay,
+        period: statsSettings.value.statsReportPeriod,
+        url: statsSettings.value.statsTelegramNotifyUrl
+      })
+    })
+    props.app.toast(props.app.t('settings.statsReportSaved'))
+  } catch (error) {
+    props.app.toast(error.message || props.app.t('settings.statsReportError'))
+  }
+}
+
+async function testStatsReport() {
+  try {
+    await props.app.api('/api/stats/report', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: statsSettings.value.statsTelegramNotifyUrl,
+        period: statsSettings.value.statsReportPeriod,
+        test: true
+      })
+    })
+    props.app.toast(props.app.t('settings.statsReportTestSent'))
+  } catch (error) {
+    props.app.toast(error.message || props.app.t('settings.statsReportError'))
+  }
+}
 </script>
 
 <script>
-import { KeyRound as KeyRoundIcon, QrCode as QrCodeIcon, Save as SaveIcon, Send as SendIcon, Settings as SettingsIcon, ShieldCheck as ShieldCheckIcon } from "@lucide/vue";
+import { KeyRound as KeyRoundIcon, QrCode as QrCodeIcon, Save as SaveIcon, Send as SendIcon, Settings as SettingsIcon, ShieldCheck as ShieldCheckIcon, FileText as FileTextIcon } from "@lucide/vue";
 
 export default {
-  components: { KeyRoundIcon, QrCodeIcon, SaveIcon, SendIcon, SettingsIcon, ShieldCheckIcon }
+  components: { KeyRoundIcon, QrCodeIcon, SaveIcon, SendIcon, SettingsIcon, ShieldCheckIcon, FileTextIcon }
 };
 </script>
 
