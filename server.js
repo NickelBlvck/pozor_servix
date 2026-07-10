@@ -193,6 +193,8 @@ function getMeta() {
     statsReportEnabled: ["1", "true"].includes(String(meta.statsReportEnabled).toLowerCase()),
     statsReportDay: Math.min(28, Math.max(1, Number(meta.statsReportDay || 1) || 1)),
     statsReportPeriod: ["prev_month", "30d", "90d"].includes(meta.statsReportPeriod) ? meta.statsReportPeriod : "prev_month",
+    plategaMerchantId: meta.plategaMerchantId || "",
+    plategaSecret: meta.plategaSecret || "",
     statsReportConfigured: Boolean(meta.statsTelegramNotifyUrl)
   };
 }
