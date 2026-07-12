@@ -93,7 +93,7 @@
   "income": {
     "title": "Доходы", "subtitle": "Поступления и свободные средства по всем балансам.",
     "freeMoney": "Всего свободных денег", "plategaMoney": "Денег на Platega", "otherMoney": "Денег из других источников", "receipts": "Поступлений",
-    "plategaBalances": "Баланс Platega", "plategaBalancesHelp": "Показывает текущие балансы Platega.", "plategaEmpty": "Балансы Platega не найдены", "plategaHint": "Укажите Platega креды в админке или PLATEGA_MERCHANT_ID и PLATEGA_SECRET в docker-compose.yml.", "frozenBalance": "Заморожено: {amount}",
+    "plategaBalances": "Баланс Platega", "plategaBalancesHelp": "Показывает текущие балансы Platega.", "plategaEmpty": "Балансы Platega не найдены", "plategaHint": "Укажите Platega креды в админке или PLATEGA_MERCHANT_ID и PLATEGA_SECRET в docker-compose.yml.", "plategaError": "Ошибка Platega ({status})", "frozenBalance": "Заморожено: {amount}",
     "add": "Добавить поступление", "manualReceipts": "Ручные поступления", "name": "Название", "amount": "Сумма", "balance": "На каком балансе",
     "balancePlaceholder": "Например, наличные или ЮMoney", "empty": "Ручных поступлений пока нет", "saved": "Поступление добавлено", "deleteConfirm": "Удалить это поступление?",
     "emptyStateTitle": "Доходы пока не поступали",
@@ -107,7 +107,7 @@
     "leadsHint": "Формат: `m` минуты, `h` часы, `d` дни. Например: `5m, 2h, 1d, 3d, 5d`.",
     "language": "Язык интерфейса и уведомлений", "timezone": "Таймзона",
     "telegramNotifyUrl": "URL уведомлений", "notifyOnStart": "Отправлять уведомления при старте",
-    "plategaMerchantId": "Merchant ID Platega", "plategaSecret": "Секретный ключ Platega", "plategaHelp": "Укажите данные Platega в админке или в docker-compose.yml.",
+    "plategaMerchantId": "Merchant ID Platega", "plategaSecret": "Секретный ключ Platega", "plategaHelp": "Укажите данные Platega в админке или в docker-compose.yml.", "testPlatega": "Проверить Platega", "plategaTestOk": "Platega подключена: {count} балансов", "plategaTestFail": "Platega ошибка ({status}): {error}",
     "saved": "Настройки сохранены", "testTelegram": "Проверить Telegram",
     "currency": "Валюта", "currencySubtitle": "Настройки мультивалютности",
     "default_currency": "Основная валюта",

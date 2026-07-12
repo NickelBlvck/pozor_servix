@@ -99,7 +99,14 @@
             </button>
           </span>
         </label>
-        <label>{{ app.t("settings.plategaMerchantId") }}<input v-model="app.settings.plategaMerchantId" type="text" autocomplete="off" placeholder="your_platega_merchant_id"></label>
+        <label>{{ app.t("settings.plategaMerchantId") }}
+          <span class="input-with-action">
+            <input v-model="app.settings.plategaMerchantId" type="text" autocomplete="off" placeholder="your_platega_merchant_id">
+            <button class="input-action-button tooltip tooltip-left" type="button" :aria-label="app.t('settings.testPlatega')" :data-tooltip="app.t('settings.testPlatega')" @click="testPlatega">
+              <SendIcon :size="16" />
+            </button>
+          </span>
+        </label>
         <label>{{ app.t("settings.plategaSecret") }}<input v-model="app.settings.plategaSecret" type="password" autocomplete="new-password" placeholder="your_platega_secret"></label>
         <label>{{ app.t("settings.leads") }}<input v-model="app.settings.notificationLeads" type="text" placeholder="5m, 2h, 1d, 3d, 5d" required></label>
         <div class="settings-inline-footer">
@@ -388,6 +395,25 @@ async function testStatsReport() {
     props.app.toast(props.app.t('settings.statsReportTestSent'))
   } catch (error) {
     props.app.toast(error.message || props.app.t('settings.statsReportError'))
+  }
+}
+
+async function testPlatega() {
+  try {
+    const result = await props.app.api('/api/platega/test', {
+      method: 'POST',
+      body: JSON.stringify({
+        merchantId: props.app.settings.plategaMerchantId,
+        secret: props.app.settings.plategaSecret
+      })
+    })
+    if (result.ok) {
+      props.app.toast(props.app.t('settings.plategaTestOk', { count: result.count }))
+    } else {
+      props.app.toast(props.app.t('settings.plategaTestFail', { status: result.status, error: result.error }))
+    }
+  } catch (error) {
+    props.app.toast(error.message || props.app.t('settings.plategaTestFail', { status: '?', error: error.message }))
   }
 }
 </script>

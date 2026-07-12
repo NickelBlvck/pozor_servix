@@ -18,8 +18,6 @@ const LEGACY_JSON_FILE = path.join(DATA_DIR, "assets.json");
 const PUBLIC_DIR = path.join(__dirname, "dist");
 const LOCALE_DIR = path.join(__dirname, "locale");
 const TELEGRAM_NOTIFY_URL = String(process.env.TELEGRAM_NOTIFY_URL || "");
-const PLATEGA_MERCHANT_ID = String(process.env.PLATEGA_MERCHANT_ID || "").trim();
-const PLATEGA_SECRET = String(process.env.PLATEGA_SECRET || "").trim();
 const NOTIFY_ON_START = String(process.env.NOTIFY_ON_START || "true") === "true";
 const APP_TIMEZONE = String(process.env.APP_TIMEZONE || "Europe/Moscow");
 const MAX_TIMEOUT_MS = 2_147_483_647;
@@ -1332,29 +1330,49 @@ function normalizeIncome(input) {
   };
 }
 
-async function getPlategaBalances() {
-  const meta = getMeta();
-  const merchantId = String(process.env.PLATEGA_MERCHANT_ID || "").trim() || String(meta.plategaMerchantId || "").trim();
-  const secret = String(process.env.PLATEGA_SECRET || "").trim() || String(meta.plategaSecret || "").trim();
-  if (!merchantId || !secret) return { configured: false, balances: [], error: "Platega не настроена" };
+async function fetchPlategaBalances(merchantId, secret) {
+  const id = String(merchantId || "").trim();
+  const key = String(secret || "").trim();
+  if (!id || !key) return { configured: false, balances: [], error: "Platega не настроена", status: 0 };
   try {
     const response = await fetch("https://app.platega.io/balance/all", {
-      headers: { "X-MerchantId": merchantId, "X-Secret": secret },
+      headers: { "X-MerchantId": id, "X-Secret": key },
       signal: AbortSignal.timeout(10_000)
     });
     const payload = await response.json().catch(() => null);
-    if (!response.ok || !Array.isArray(payload)) throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+    if (!response.ok || !Array.isArray(payload)) {
+      const message = payload?.message || payload?.error || `HTTP ${response.status}`;
+      throw { message, status: response.status };
+    }
     return {
       configured: true,
       balances: payload.map((item) => ({
         currency: String(item.currency || "").toUpperCase(),
         amount: Number(item.amount || 0),
         frozenBalance: Number(item.frozenBalance || 0)
-      })).filter((item) => item.currency)
+      })).filter((item) => item.currency),
+      error: "",
+      status: 200
     };
-  } catch (error) {
-    return { configured: true, balances: [], error: error.message || "Не удалось получить баланс Platega" };
+  } catch (failure) {
+    const error = failure && typeof failure === "object" ? failure : { message: String(failure) };
+    return {
+      configured: true,
+      balances: [],
+      error: error.message || "Не удалось получить баланс Platega",
+      status: Number(error.status) || 0
+    };
   }
+}
+
+async function getPlategaBalances() {
+  // Креды из админки (meta) главнее env-переменных — это согласовано с siteTitle,
+  // timezone и telegramNotifyUrl. Раньше env с placeholder-значениями из
+  // docker-compose.yml («your_platega_merchant_id») перекрывали сохранённые креды.
+  const meta = getMeta();
+  const merchantId = String(meta.plategaMerchantId || "").trim() || String(process.env.PLATEGA_MERCHANT_ID || "").trim();
+  const secret = String(meta.plategaSecret || "").trim() || String(process.env.PLATEGA_SECRET || "").trim();
+  return fetchPlategaBalances(merchantId, secret);
 }
 
 async function handleApi(req, res, url) {
@@ -1557,6 +1575,23 @@ async function handleApi(req, res, url) {
     if (!result.changes) return sendJson(res, 404, { error: "Поступление не найдено" });
     await logAction(req, "income.delete", { id: incomeMatch[1] });
     return sendJson(res, 200, { success: true });
+  }
+  if (req.method === "POST" && url.pathname === "/api/platega/test") {
+    // Проверка кредов Platega до сохранения: берём значения из тела запроса,
+    // а если поле не передано — используем уже сохранённые креды.
+    const body = await readBody(req);
+    const meta = getMeta();
+    const merchantId = Object.hasOwn(body, "merchantId") ? String(body.merchantId || "").trim() : meta.plategaMerchantId;
+    const secret = Object.hasOwn(body, "secret") ? String(body.secret || "").trim() : meta.plategaSecret;
+    const result = await fetchPlategaBalances(merchantId, secret);
+    return sendJson(res, 200, {
+      ok: !result.error && result.balances.length > 0,
+      balances: result.balances,
+      count: result.balances.length,
+      configured: result.configured,
+      error: result.error || "",
+      status: result.status
+    });
   }
   if (req.method === "GET" && url.pathname === "/api/logs") return sendJson(res, 200, { items: await readAccessLog() });
   if (req.method === "GET" && url.pathname === "/api/notifications") return sendJson(res, 200, { items: getDueItems() });
