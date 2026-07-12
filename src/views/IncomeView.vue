@@ -12,7 +12,7 @@
       <article class="stat-card"><span>{{ app.t('income.receipts') }}</span><strong>{{ incomes.length }}</strong></article>
     </div>
 
-    <div v-if="!loading && !platega.value.balances.length && !incomes.length" class="inline-empty income-empty-state">
+    <div v-if="!loading && !platega.balances.length && !incomes.length" class="inline-empty income-empty-state">
       <div><strong>{{ app.t('income.emptyStateTitle') }}</strong></div>
       <div>{{ app.t('income.emptyStateText') }}</div>
     </div>
@@ -22,15 +22,15 @@
         <h2>{{ app.t('income.plategaBalances') }}</h2>
         <span>{{ app.t('income.plategaBalancesHelp') }}</span>
       </div>
-      <div v-if="platega.value.balances.length" class="balance-list">
-        <div v-for="balance in platega.value.balances" :key="balance.currency" class="balance-row">
+      <div v-if="platega.balances.length" class="balance-list">
+        <div v-for="balance in platega.balances" :key="balance.currency" class="balance-row">
           <span><strong>{{ balance.currency }}</strong></span>
           <span>{{ formatMoney(balance.amount, balance.currency) }}</span>
           <small v-if="balance.frozenBalance > 0">{{ app.t('income.frozenBalance', { amount: formatMoney(balance.frozenBalance, balance.currency) }) }}</small>
         </div>
       </div>
       <div v-else class="inline-empty">
-        <div>{{ platega.value.error || app.t('income.plategaEmpty') }}</div>
+        <div>{{ platega.error || app.t('income.plategaEmpty') }}</div>
         <div class="income-hint">{{ app.t('income.plategaHint') }}</div>
       </div>
     </article>
