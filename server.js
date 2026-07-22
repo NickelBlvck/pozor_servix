@@ -20,6 +20,7 @@ const LOCALE_DIR = path.join(__dirname, "locale");
 const TELEGRAM_NOTIFY_URL = String(process.env.TELEGRAM_NOTIFY_URL || "");
 const NOTIFY_ON_START = String(process.env.NOTIFY_ON_START || "true") === "true";
 const APP_TIMEZONE = String(process.env.APP_TIMEZONE || "Europe/Moscow");
+const BASE_URL = String(process.env.BASE_URL || "http://localhost:3000");
 const MAX_TIMEOUT_MS = 2_147_483_647;
 const SESSION_MAX_AGE_SECONDS = 2_592_000;
 const AUTH_RATE_WINDOW_MS = 15 * 60_000;
@@ -123,6 +124,10 @@ async function initDb() {
   ensureColumn("users", "totp_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_pending_secret", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("users", "totp_enabled", "INTEGER NOT NULL DEFAULT 0");
+  // Новые поля для платежей
+  ensureColumn("payments", "cost", "REAL NOT NULL DEFAULT 0");
+  ensureColumn("payments", "paid", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("payments", "notifications_disabled", "INTEGER NOT NULL DEFAULT 0");
 
   ensureMeta("siteTitle", SITE_TITLE);
   ensureMeta("notificationLeads", "5m,2h,1d,3d,5d");
@@ -223,7 +228,7 @@ function normalizeTimezone(value) {
 function getData() {
   const providers = db.prepare(`SELECT id, name, login_url AS loginUrl, favicon_url AS faviconUrl, color, note, created_at AS createdAt, updated_at AS updatedAt FROM providers ORDER BY created_at DESC`).all();
   const assets = db.prepare(`SELECT id, type, name, provider_id AS providerId, expires_at AS expiresAt, ip, domain, country_code AS countryCode, sort_order AS sortOrder, inactive, created_at AS createdAt, updated_at AS updatedAt FROM assets ORDER BY type ASC, sort_order ASC, created_at DESC`).all();
-  const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId FROM payments ORDER BY paid_at DESC, created_at DESC`).all();
+  const payments = db.prepare(`SELECT id, asset_id AS assetId, amount, paid_at AS paidAt, note, created_at AS createdAt, currency, author_id AS authorId, cost, paid, notifications_disabled AS notificationsDisabled FROM payments ORDER BY paid_at DESC, created_at DESC`).all();
   const authors = db.prepare(`SELECT id, name, sort_order AS sortOrder, is_active AS isActive FROM payment_authors WHERE is_active = 1 ORDER BY sort_order ASC, name ASC`).all();
   const authorNames = new Map(authors.map((author) => [author.id, author.name]));
   for (const asset of assets) {
@@ -342,6 +347,9 @@ function normalizePayments(input) {
       note: String(payment.note || "").trim(),
       currency: String(payment.currency || "USDT").trim(),
       authorId: String(payment.authorId || "").trim(),
+      cost: Number(payment.cost ?? 0),
+      paid: Boolean(payment.paid ?? false),
+      notificationsDisabled: Boolean(payment.notificationsDisabled ?? false),
       createdAt: payment.createdAt || new Date().toISOString()
     }))
     .filter((payment) => payment.amount > 0 || payment.paidAt || payment.note);
@@ -439,9 +447,9 @@ function upsertAsset(asset) {
   db.prepare(`INSERT INTO assets (id, type, name, provider_id, expires_at, ip, domain, country_code, sort_order, inactive, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET type = excluded.type, name = excluded.name, provider_id = excluded.provider_id, expires_at = excluded.expires_at, ip = excluded.ip, domain = excluded.domain, country_code = excluded.country_code, sort_order = excluded.sort_order, inactive = excluded.inactive, updated_at = excluded.updated_at`)
     .run(asset.id, asset.type, asset.name, asset.providerId, asset.expiresAt, asset.ip, asset.domain, asset.countryCode, asset.sortOrder, asset.inactive ? 1 : 0, asset.createdAt, asset.updatedAt);
   db.prepare("DELETE FROM payments WHERE asset_id = ?").run(asset.id);
-  const stmt = db.prepare("INSERT INTO payments (id, asset_id, amount, paid_at, note, created_at, currency, author_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+  const stmt = db.prepare("INSERT INTO payments (id, asset_id, amount, paid_at, note, created_at, currency, author_id, cost, paid, notifications_disabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
   for (const payment of asset.payments || []) {
-    stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt, payment.currency, payment.authorId);
+    stmt.run(payment.id, asset.id, payment.amount, payment.paidAt, payment.note, payment.createdAt, payment.currency, payment.authorId, payment.cost || 0, payment.paid ? 1 : 0, payment.notificationsDisabled ? 1 : 0);
   }
   scheduleNotifications();
   return asset;
@@ -810,10 +818,16 @@ async function sendTelegramMessage(text, options = {}) {
   if (!config) return { skipped: true, reason: "Telegram URL не задан" };
   const payload = { chat_id: config.chatId, text, parse_mode: "HTML", disable_web_page_preview: true };
   if (config.topicId) payload.message_thread_id = Number(config.topicId);
+  // Поддержка кнопок
+  const inlineKeyboard = [];
   if (options.buttonUrl) {
-    payload.reply_markup = {
-      inline_keyboard: [[{ text: options.buttonText || "Перейти к оплате", url: options.buttonUrl }]]
-    };
+    inlineKeyboard.push([{ text: options.buttonText || "Перейти к оплате", url: options.buttonUrl }]);
+  }
+  if (options.callbackUrl) {
+    inlineKeyboard.push([{ text: options.callbackText || "✅ Оплачено", url: options.callbackUrl }]);
+  }
+  if (inlineKeyboard.length) {
+    payload.reply_markup = { inline_keyboard: inlineKeyboard };
   }
   const response = await fetch(`https://api.telegram.org/bot${config.token}/sendMessage`, {
     method: "POST",
@@ -919,6 +933,41 @@ function markSent(eventIdValue) {
   db.prepare("INSERT OR REPLACE INTO telegram_sent (event_id, sent_at) VALUES (?, ?)").run(eventIdValue, new Date().toISOString());
 }
 
+// Функции для работы с платежами
+function updatePayment(paymentId, updates) {
+  const fields = [];
+  const values = [];
+  for (const [key, value] of Object.entries(updates)) {
+    if (key === "id" || key === "assetId" || key === "createdAt") continue;
+    const columnMap = {
+      amount: "amount",
+      paidAt: "paid_at",
+      note: "note",
+      currency: "currency",
+      authorId: "author_id",
+      cost: "cost",
+      paid: "paid",
+      notificationsDisabled: "notifications_disabled"
+    };
+    const col = columnMap[key];
+    if (!col) continue;
+    fields.push(`${col} = ?`);
+    values.push(typeof value === "boolean" ? (value ? 1 : 0) : value);
+  }
+  if (!fields.length) throw new Error("No fields to update");
+  values.push(paymentId);
+  const stmt = db.prepare(`UPDATE payments SET ${fields.join(", ")} WHERE id = ?`);
+  const result = stmt.run(...values);
+  if (result.changes === 0) throw new Error("Payment not found");
+  // Обновляем связанный актив для пересчета уведомлений
+  const payment = db.prepare("SELECT asset_id FROM payments WHERE id = ?").get(paymentId);
+  if (payment) {
+    const asset = getData().assets.find(a => a.id === payment.asset_id);
+    if (asset) scheduleNotifications();
+  }
+  return { success: true };
+}
+
 async function processDueNotifications() {
   if (!telegramNotifyUrl()) return scheduleNotifications();
   const now = new Date();
@@ -943,9 +992,18 @@ async function processDueNotifications() {
     });
   if (due.length) {
     for (const item of due) {
+      // Формируем кнопку "Оплачено" для каждого платежа? Сложно, т.к. уведомление об истечении срока, а не о платеже.
+      // Но мы можем добавить кнопку для быстрой оплаты самого последнего неоплаченного платежа по этому активу.
+      const unpaidPayment = item.asset.payments?.find(p => !p.paid);
+      let callbackUrl = null;
+      if (unpaidPayment) {
+        callbackUrl = `${BASE_URL}/api/payments/${unpaidPayment.id}/mark-paid?redirect=${encodeURIComponent(BASE_URL)}`;
+      }
       const result = await sendTelegramMessage(alertText(item, locale), {
         buttonUrl: item.provider?.loginUrl,
-        buttonText: t(locale, "telegram.paymentButton")
+        buttonText: t(locale, "telegram.paymentButton"),
+        callbackUrl: callbackUrl,
+        callbackText: t(locale, "telegram.markPaidButton")
       });
       if (!result?.skipped) {
         for (const id of item.suppressIds || [item.id]) markSent(id);
@@ -970,8 +1028,6 @@ function scheduleNotifications() {
 
 function statsTelegramNotifyUrl() {
   if (!db) return "";
-  // A separate destination is optional: by default reports go to the same chat
-  // as ordinary expiry notifications.
   const meta = getMeta();
   return meta.statsTelegramNotifyUrl || meta.telegramNotifyUrl || "";
 }
@@ -1236,7 +1292,6 @@ function fetchCBRRate() {
   });
 }
 
-// Лёгкий парсер ответа ЦБ РФ без внешних зависимостей
 class DOMParserLite {
   constructor(xml) {
     this.xml = String(xml || "");
@@ -1366,9 +1421,6 @@ async function fetchPlategaBalances(merchantId, secret) {
 }
 
 async function getPlategaBalances() {
-  // Креды из админки (meta) главнее env-переменных — это согласовано с siteTitle,
-  // timezone и telegramNotifyUrl. Раньше env с placeholder-значениями из
-  // docker-compose.yml («your_platega_merchant_id») перекрывали сохранённые креды.
   const meta = getMeta();
   const merchantId = String(meta.plategaMerchantId || "").trim() || String(process.env.PLATEGA_MERCHANT_ID || "").trim();
   const secret = String(meta.plategaSecret || "").trim() || String(process.env.PLATEGA_SECRET || "").trim();
@@ -1558,25 +1610,25 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/assets") return sendJson(res, 200, getData());
   if (req.method === "GET" && url.pathname === "/api/incomes") return sendJson(res, 200, { items: listIncomes(), authors: getPaymentAuthors() });
-    if (req.method === "GET" && url.pathname === "/api/income/stats") {
-      const period = getMeta().statsReportPeriod || "30d";
-      let since = new Date();
-      switch(period) {
-        case "7d": since = new Date(Date.now() - 7 * 86400_000); break;
-        case "30d": since = new Date(Date.now() - 30 * 86400_000); break;
-        case "90d": since = new Date(Date.now() - 90 * 86400_000); break;
-      }
-      const [platega, incomes] = await Promise.all([getPlategaBalances(), listIncomes()]).catch(() => [{ configured: false }, []]);
-      const result = { platega };
-      if (incomes.length) {
-        result.incomeTimeline = incomes.filter((item) => new Date(item.receivedAt).getTime() >= since.getTime());
-        result.since = since.toISOString();
-      } else {
-        result.categoryTotals = {};
-      }
-      return sendJson(res, 200, result);
+  if (req.method === "GET" && url.pathname === "/api/income/stats") {
+    const period = getMeta().statsReportPeriod || "30d";
+    let since = new Date();
+    switch(period) {
+      case "7d": since = new Date(Date.now() - 7 * 86400_000); break;
+      case "30d": since = new Date(Date.now() - 30 * 86400_000); break;
+      case "90d": since = new Date(Date.now() - 90 * 86400_000); break;
     }
-    if (req.method === "GET" && url.pathname === "/api/incomes/summary") {
+    const [platega, incomes] = await Promise.all([getPlategaBalances(), listIncomes()]).catch(() => [{ configured: false }, []]);
+    const result = { platega };
+    if (incomes.length) {
+      result.incomeTimeline = incomes.filter((item) => new Date(item.receivedAt).getTime() >= since.getTime());
+      result.since = since.toISOString();
+    } else {
+      result.categoryTotals = {};
+    }
+    return sendJson(res, 200, result);
+  }
+  if (req.method === "GET" && url.pathname === "/api/incomes/summary") {
     const [platega, incomes] = await Promise.all([getPlategaBalances(), Promise.resolve(listIncomes())]);
     return sendJson(res, 200, { platega, incomes });
   }
@@ -1595,8 +1647,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { success: true });
   }
   if (req.method === "POST" && url.pathname === "/api/platega/test") {
-    // Проверка кредов Platega до сохранения: берём значения из тела запроса,
-    // а если поле не передано — используем уже сохранённые креды.
     const body = await readBody(req);
     const meta = getMeta();
     const merchantId = Object.hasOwn(body, "merchantId") ? String(body.merchantId || "").trim() : meta.plategaMerchantId;
@@ -1717,6 +1767,40 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, asset);
     }
   }
+
+  // === ОБРАБОТКА ПЛАТЕЖЕЙ ===
+  const paymentMatch = url.pathname.match(/^\/api\/payments\/([^/]+)\/(mark-paid|toggle-notifications)$/);
+  if (paymentMatch && req.method === "PUT") {
+    const paymentId = paymentMatch[1];
+    const action = paymentMatch[2];
+    try {
+      if (action === "mark-paid") {
+        const body = await readBody(req);
+        const updates = { paid: true };
+        if (body.amount !== undefined) updates.amount = Number(body.amount);
+        if (body.authorId !== undefined) updates.authorId = String(body.authorId).trim();
+        updatePayment(paymentId, updates);
+        await logAction(req, "payment.mark_paid", { paymentId, amount: updates.amount, authorId: updates.authorId });
+        // Перенаправление, если указан redirect
+        if (req.query?.redirect) {
+          res.writeHead(302, { Location: req.query.redirect });
+          return res.end();
+        }
+        return sendJson(res, 200, { success: true });
+      }
+      if (action === "toggle-notifications") {
+        const body = await readBody(req);
+        const disabled = body.disabled !== undefined ? Boolean(body.disabled) : undefined;
+        if (disabled === undefined) throw new Error("Не указано состояние");
+        updatePayment(paymentId, { notificationsDisabled: disabled });
+        await logAction(req, "payment.toggle_notifications", { paymentId, disabled });
+        return sendJson(res, 200, { success: true, disabled });
+      }
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/providers") {
     const provider = upsertProvider(normalizeProvider(await readBody(req)));
     await logAction(req, "provider.create", { id: provider.id, name: provider.name });
