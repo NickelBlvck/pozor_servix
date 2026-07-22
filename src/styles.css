@@ -2148,6 +2148,10 @@ label {
   fill: color-mix(in srgb, var(--warn) 13%, transparent);
 }
 
+.pie-chart {
+  min-height: 260px;
+}
+
 .line-axis {
   display: flex;
   justify-content: space-between;
