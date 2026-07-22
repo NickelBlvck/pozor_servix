@@ -1558,7 +1558,25 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/assets") return sendJson(res, 200, getData());
   if (req.method === "GET" && url.pathname === "/api/incomes") return sendJson(res, 200, { items: listIncomes(), authors: getPaymentAuthors() });
-  if (req.method === "GET" && url.pathname === "/api/incomes/summary") {
+    if (req.method === "GET" && url.pathname === "/api/income/stats") {
+      const period = getMeta().statsReportPeriod || "30d";
+      let since = new Date();
+      switch(period) {
+        case "7d": since = new Date(Date.now() - 7 * 86400_000); break;
+        case "30d": since = new Date(Date.now() - 30 * 86400_000); break;
+        case "90d": since = new Date(Date.now() - 90 * 86400_000); break;
+      }
+      const [platega, incomes] = await Promise.all([getPlategaBalances(), listIncomes()]).catch(() => [{ configured: false }, []]);
+      const result = { platega };
+      if (incomes.length) {
+        result.incomeTimeline = incomes.filter((item) => new Date(item.receivedAt).getTime() >= since.getTime());
+        result.since = since.toISOString();
+      } else {
+        result.categoryTotals = {};
+      }
+      return sendJson(res, 200, result);
+    }
+    if (req.method === "GET" && url.pathname === "/api/incomes/summary") {
     const [platega, incomes] = await Promise.all([getPlategaBalances(), Promise.resolve(listIncomes())]);
     return sendJson(res, 200, { platega, incomes });
   }

@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS payments_status (
+  id TEXT PRIMARY KEY,
+  is_paid INTEGER NOT NULL DEFAULT 0
+);
